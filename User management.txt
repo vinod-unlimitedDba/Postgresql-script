@@ -1,0 +1,199 @@
+
+
+
+Postgressql user & schema & security management
+=====================================
+
+In postgresql user & role & group are same but role can't have login privilege where user will be there. Below is the example
+
+			 CREATE USER username [ [ WITH ] 
+			   SYSID uid 
+			   | [ ENCRYPTED | UNENCRYPTED ] PASSWORD 'password'
+			   | CREATEDB | NOCREATEDB
+			   | CREATEUSER | NOCREATEUSER
+			   | IN GROUP groupname [, ...]
+			   | VALID UNTIL 'abstime' ]
+
+		To create a PostgreSQL user, use the following SQL statement:
+
+		CREATE USER myuser WITH PASSWORD 'secret_passwd';
+
+		You can also create a user with the following SQL statement:
+
+		CREATE ROLE myuser WITH LOGIN PASSWORD 'secret_passwd';
+
+Altering users
+If you want to change a user you can use the ALTER USER SQL command, 
+which is similar to the CREATE USER command except you can’t change the sysid.
+
+			ALTER USER name [ [ WITH ] 
+				[ ENCRYPTED | UNENCRYPTED ] PASSWORD 'password' 
+				| CREATEDB | NOCREATEDB
+				| CREATEUSER | NOCREATEUSER 
+				| VALID UNTIL 'abstime' ]
+				
+				ALTER USER alice CREATEDB;
+				ALTER USER name RENAME TO newname;
+				
+				
+Creating Groups
+The syntax for the CREATE GROUP command is as follows:
+
+CREATE GROUP groupname [ WITH USER comma-separated-list-of-users ]
+For example, to add a new group, editors, and make the existing users jason and sofia
+members, we would use the following statement:
+
+CREATE GROUP editors WITH USER jason, sofia;
+
+We can add and remove users from a group using ALTER GROUP, which has the following syntax:
+  ALTER GROUP groupname ADD USER username
+  ALTER GROUP groupname DROP USER username			
+				
+				
+
+To change the password of a PostgreSQL user, you use the ALTER ROLE statement as follows:
+==============================================================================================
+
+		ALTER ROLE username  WITH PASSWORD 'password';
+
+		ALTER ROLE username WITH PASSWORD 'new_password' VALID UNTIL timestamp;
+
+		ALTER ROLE super VALID UNTIL 'December 31, 2020';
+
+Checking username details info 
+===================================
+
+	show search_path;
+
+	select current_user, session_user;
+	  
+	\c - a_new_user
+	set role usernmae;
+	\c a_new_database a_new_user ===  To Connect another username and DB
+
+	SELECT current_user;
+
+
+
+Edit: To make things simpler, I define the following alias in my ~/.psqlrc:
+=============================================================================
+\set whoami 'SELECT session_user, current_user, :''HOST'' host, :''PORT'' port, :''DBNAME'' dbname;’
+
+
+Listing users using SQL statement
+===================================
+
+SELECT usename AS role_name,
+  CASE 
+     WHEN usesuper AND usecreatedb THEN 
+	   CAST('superuser, create database' AS pg_catalog.text)
+     WHEN usesuper THEN 
+	    CAST('superuser' AS pg_catalog.text)
+     WHEN usecreatedb THEN 
+	    CAST('create database' AS pg_catalog.text)
+     ELSE 
+	    CAST('' AS pg_catalog.text)
+  END role_attributes
+FROM pg_catalog.pg_user
+ORDER BY role_name desc;
+
+Script to find the count of objects for each Database Schema
+================================================================
+SELECT
+	n.nspname as schema_name
+	,CASE c.relkind
+	   WHEN 'r' THEN 'table'
+	   WHEN 'v' THEN 'view'
+	   WHEN 'i' THEN 'index'
+	   WHEN 'S' THEN 'sequence'
+	   WHEN 's' THEN 'special'
+	END as object_type
+	,count(1) as object_count
+FROM pg_catalog.pg_class c
+LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind IN ('r','v','i','S','s')
+GROUP BY  n.nspname,
+	CASE c.relkind
+	   WHEN 'r' THEN 'table'
+	   WHEN 'v' THEN 'view'
+	   WHEN 'i' THEN 'index'
+	   WHEN 'S' THEN 'sequence'
+	   WHEN 's' THEN 'special'
+	END
+ORDER BY n.nspname,
+	CASE c.relkind
+	   WHEN 'r' THEN 'table'
+	   WHEN 'v' THEN 'view'
+	   WHEN 'i' THEN 'index'
+	   WHEN 'S' THEN 'sequence'
+	   WHEN 's' THEN 'special'
+	END;
+
+To get all grant provide to the user
+==============================================
+SELECT 'GRANT SELECT ON '||schemaname||'."'||tablename||'" TO chartio_read_only_user;' 
+FROM pg_tables WHERE schemaname IN ('public') ORDER BY schemaname, tablename;
+
+The grolist column shows a list of user ids that are in the group. 
+If you want to see the usernames in a particular group you can use:
+====================================================================
+
+select usename from pg_user, (select grolist from pg_group where groname = 'sales') as groups where usesysid = ANY(grolist) ;
+
+
+
+Find all the table and index size in the current database.
+========================================
+SELECT
+    TableName
+    ,pg_size_pretty(pg_table_size(TableName)) AS TableSize
+    ,pg_size_pretty(pg_indexes_size(TableName)) AS IndexSize
+    ,pg_size_pretty(pg_total_relation_size(TableName)) AS TotalSize
+FROM 
+(
+     SELECT ('"' || table_schema || '"."' || table_name || '"') AS TableName
+     FROM information_schema.tables
+) AS Tables
+ORDER BY 4 DESC
+
+
+To find locks and blocking transaction 
+===================================
+
+SELECT 
+	pl.pid as blocked_pid
+	,psa.usename as blocked_user
+	,pl2.pid as blocking_pid
+	,psa2.usename as blocking_user
+	,psa.query as blocked_statement
+FROM pg_catalog.pg_locks pl
+JOIN pg_catalog.pg_stat_activity psa
+	ON pl.pid = psa.pid
+JOIN pg_catalog.pg_locks pl2
+JOIN pg_catalog.pg_stat_activity psa2
+	ON pl2.pid = psa2.pid
+	ON pl.transactionid = pl2.transactionid 
+		AND pl.pid != pl2.pid
+WHERE NOT pl.granted;
+
+To check ddl of object in PG
+==========================
+
+SELECT prosrc FROM pg_proc WHERE proname = 'add_one';
+
+\sf name;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

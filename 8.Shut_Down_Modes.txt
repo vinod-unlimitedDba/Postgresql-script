@@ -1,0 +1,142 @@
+oracle shut done modes:
+===================
+
+oracle		postgres		
+=======		=========  
+shutdown normal==>smart
+shutdown abort  ==>immediate
+shutdown immediate
+shutdown transactional==>fast
+
+
+SHUTDOWN MODES:
+===========
+
+1.smart  ==>default
+2.fast
+3.immediate
+
+pg_ctl - start, stop, or restart a PostgreSQL server
+
+pg_ctl stop  [-D datadir] [-m s[mart] |f[ast] | i[mmediate]]
+
+PG_CTL:
+=======
+pg_ctl is a utility for starting, stopping, or restarting the PostgreSQL backend server (postmaster(1)), or displaying the status of a running server.
+
+pg_ctl -d /u01/data stop --->smart
+===>	1.Start mode:
+	============
+	1.In start mode, a new server is launched. The server is started in the background.
+
+	2.The  standard output  and standard error are either appended to a log file (if the -l option is used), or redirected to pg_ctl's standard output  (not  stan-
+       	dard  error).
+
+	If  no log file is chosen, the standard output of pg_ctl should be redirected to a file.
+
+	For Example a  log  rotating program, otherwise postmaster will write its output to the controlling terminal (from the background)
+
+===>	2.Shutdown:
+	==========
+	In  stop  mode, the server that is running in the specified data directory is shut down. 
+
+	Three different shutdown  methods  can  be  selected with the -m option and below are the options.
+
+	1.s	==>	smart 	==>	Smart: in this mode waits for all the clients to discon-nect. This is the default
+	2.f 	==>	fast	==>	In this mode does not wait for  clients  to disconnect.  
+					All  active  transactions  are rolled back and clients are forcibly disconnected, then the server is shut down.
+	2.i	==>   immediate==>
+
+empno100==>10==>
+udate emp set sal=100 where empno=100;lsn=10
+
+
+	3.i	==>	mmediate ==>	Iin this mode will  abort  all  server  processes without a clean shutdown. 
+					This will lead to a recovery run on restart.
+==>	3.restart: 	In this mode effectively executes a stop  followed  by  a  start.  This allows changing the postmaster command-line options.
+==>	4. reload:	In this mode simply sends the postmaster process a SIGHUP signal, caus-ing it to reread its configuration files
+		   	(postgresql.conf, pg_hba.conf,etc.).  This  allows changing of configuration-file options that do not require a complete restart to take effect.
+
+==>	5.status	In this  mode checks whether a server is running in  the  specified  data directory.  If  it  is,  the PID and the command line options that were
+      			used to invoke it are displayed.
+
+OPTIONS
+=======
+1. -D datadir:  Specifies the file system location of  the  database  files. If this is omitted, the environment variable PGDATA is used.
+2. -l filename:	Append  the  server log output to filename. If the file does not exist, it is created. The umask is set to 077, so access to  
+		the log file from other users is disallowed by default.
+3.-m mode:	Specifies the shutdown mode. mode may be smart, fast, or immediate, or the first letter of one of these three.
+4.-o options:	Specifies options to be passed directly to the  postmaster  com-mand.
+5.
+6. -s		Only print errors, no informational messages.
+
+7.-w		Wait  for  the start or shutdown to complete. Times out after 60 seconds. This is the default for shutdowns. A  successful  shut-
+              	down is indicated by removal of the PID file. For starting up, a successful psql -l indicates success. 
+		pg_ctl will attempt to use the  proper  port  for  psql. 
+		If the environment variable PGPORT exists, that is used. Otherwise, it will see if a port has  been set  in  the postgresql.conf file.  If neither of those is used,
+              	it will use the default port that PostgreSQL was  compiled  with  (5432 by default).
+
+8. -W     	Do  not  wait  for  start  or  shutdown to complete. This is the default for starts and restarts.
+
+ENVIRONMENT:
+============
+       PGDATA Default data directory location.
+
+       PGPORT Default port for psql(1) (used by the -w option).
+
+EXAMPLES:
+===========
+   STARTING THE SERVER
+       To start up a server:
+
+       $ pg_ctl start
+
+
+[postgres@postgres-elsy1112 data]$ /usr/pgsql-12/bin/pg_ctl -D /var/lib/pgsql/12/data/ stop -m fast
+waiting for server to shut down.... done
+server stopped
+
+[postgres@postgres-elsy1112 data]$ /usr/pgsql-12/bin/pg_ctl -D /var/lib/pgsql/12/data/ start
+waiting for server to start....2021-06-27 12:55:01.248 IST [11456] LOG:  starting PostgreSQL 12.7 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-23), 64-bit
+2021-06-27 12:55:01.268 IST [11456] LOG:  listening on IPv6 address "::1", port 5433
+2021-06-27 12:55:01.270 IST [11456] LOG:  listening on IPv4 address "127.0.0.1", port 5433
+2021-06-27 12:55:01.282 IST [11456] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5433"
+2021-06-27 12:55:01.298 IST [11456] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5433"
+2021-06-27 12:55:01.347 IST [11456] LOG:  redirecting log output to logging collector process
+2021-06-27 12:55:01.347 IST [11456] HINT:  Future log output will appear in directory "log".
+ done
+server started
+
+SMART:
+======
+[postgres@postgres-elsy1112 data]$ /usr/pgsql-12/bin/pg_ctl -D /var/lib/pgsql/12/data/ stop -m smart
+waiting for server to shut down.... done
+server stopped
+[postgres@postgres-elsy1112 data]$ /usr/pgsql-12/bin/pg_ctl -D /var/lib/pgsql/12/data/ start
+waiting for server to start....2021-06-27 12:55:11.709 IST [11468] LOG:  starting PostgreSQL 12.7 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-23), 64-bit
+2021-06-27 12:55:11.713 IST [11468] LOG:  listening on IPv6 address "::1", port 5433
+2021-06-27 12:55:11.714 IST [11468] LOG:  listening on IPv4 address "127.0.0.1", port 5433
+2021-06-27 12:55:11.723 IST [11468] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5433"
+2021-06-27 12:55:11.731 IST [11468] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5433"
+2021-06-27 12:55:11.761 IST [11468] LOG:  redirecting log output to logging collector process
+2021-06-27 12:55:11.761 IST [11468] HINT:  Future log output will appear in directory "log".
+ done
+server started
+
+IMMEDIATE:
+=========
+[postgres@postgres-elsy1112 data]$ /usr/pgsql-12/bin/pg_ctl -D /var/lib/pgsql/12/data/ stop -m immediate
+waiting for server to shut down.... done
+server stopped
+[postgres@postgres-elsy1112 data]$
+
+CREATE TABLE scale_write_0 AS (
+SELECT GENERATE_SERIES::numeric id1
+     , (random() * 9000000)::numeric + 10000000 id2
+     , (random() * 9000000)::numeric + 10000000 id3
+     , (random() * 9000000)::numeric + 10000000 id4
+     , (random() * 9000000)::numeric + 10000000 id5
+  FROM GENERATE_SERIES(10000000, 19999999)
+);
+
+https://www.cybertec-postgresql.com/en/postgresql-shutdown-modes/

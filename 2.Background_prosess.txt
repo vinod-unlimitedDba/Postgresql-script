@@ -1,0 +1,372 @@
+
+Process architecture:
+===================
+
+1.CHECKPOINTER: it will also write the data from shared_buffers to data files.
+2.BG WRITER==>background writyer ==> it will write dirty buffers fro mshared_buffers into data files.
+3.logger    #it will tracking each and everything and written in to log file
+4.wal writer  # it will write the data from wal_buffers into wal files
+5.stats collector # it will collect the statistics.
+6.autovacuum launcher # if you enable autovacuum then this will do autovacuum.
+
+
+
+postgres 18085     1  0 Jun16 ?        00:00:14 /usr/local/pgsql/bin/postgres
+postgres 18086 18085  0 Jun16 ?        00:00:00 postgres: logger
+postgres 18088 18085  0 Jun16 ?        00:00:00 postgres: checkpointer
+postgres 18089 18085  0 Jun16 ?        00:00:07 postgres: background writer
+postgres 18090 18085  0 Jun16 ?        00:00:09 postgres: walwriter
+postgres 18091 18085  0 Jun16 ?        00:00:20 postgres: autovacuum launcher
+postgres 18092 18085  0 Jun16 ?        00:01:32 postgres: stats collector
+postgres 18093 18085  0 Jun16 ?        00:00:00 postgres: logical replication launcher
+
+1.Checkpointer 
+============
+
+==> A checkpoint is a point in the write-ahead log sequence at which all data files have been updated to reflect the information in the log. 
+    All data files will be flushed to disk. 
+    
+==> The CHECKPOINT command forces an immediate checkpoint when the command is issued, without waiting for a regular checkpoint scheduled by the system . 
+    CHECKPOINT is not intended for use during normal operation.
+
+==> Only superusers can call CHECKPOINT.
+
+==> It is the co-ordinator between wal files to data files to ensure data consistency.
+
+==> Also it writes dirty buffers from shared buffers into data files.
+
+==> It writes all dirty pages from memory to disk and cleans the shared_buffers area.
+==> The default is five minutes (5min). Increasing this parameter can increase the amount of time needed for crash recovery
+
+But in postgresql checkpointer invoke 4 cases.
+==============================================
+
+1.Every 5min checkpointer will invoke.CHECKPOINT_TIMEOUT=5M-->
+2. When my max_wal_size is reached:max_wal_size=100mb ==>pg_wal ==>16mb
+
+3. You can issue manual checkpoint using checkpoint.
+4.Executing a command that requires a checkpoint (e.g. pg_start_backup, CREATE DATABASE, or pg_ctl stop|restart and a few others).
+
+
+and ensure the data consistency from shared buffers into data files.
+
+checkpoint_timeout=5min(30s-1d)    
+
+if you put 30s  to  upto 1 days you may or may not know  ur data files is updated data.
+
+at 10.00 am my checkpoint is invoke and 10.04am instance got crashed.during the next stratup my postmaster has to write the 4min of data into data files.
+
+
+WAL  files location:
+=====================
+cd /u01/pgsql/data/pg_wal
+ls -lrt| wc -l
+
+63
+
+du -sm
+977mb.
+
+so i can store upto 1GB of data. if 1GB is filled it will start the clearinig one.
+parameters for checkpointer:
+
+	==>	parameters in checkpointer:
+		===========================
+	==>	1.checkpoint_completion_target=0.5
+
+	This is the amount of time my checkpointer has to take write dirty buffers from shared buffers to data files.
+	checkpoint_completion_target*checkpoint_timeout=
+
+	0.5*5=2.5 min
+
+	so i am instrusting to my checkpointer take 2.5minutes to write the content from shared buffers to data files.
+
+	==>	2.checkpoint_flush_after=256KB:
+		============================
+		After 256 kb flushing from shared buffers to os case, please inform to fsync to write its own case to data file.
+
+		with shut down autmatically created checkpoint.
+
+	==>	3.Checkpoint_warning=30s
+		======================
+		it will log into the alert log file when frequently checkpoints happening.
+
+
+		Examples:
+		=========
+we given parameter like beow.
+
+checkpoint_timeout = 30s                # range 30s-1d
+max_wal_size = 100MB
+min_wal_size = 50MB
+checkpoint_completion_target = 0.5      # checkpoint target duration, 0.0 - 1.0
+checkpoint_flush_after = 256kB          # measured in pages, 0 disables
+checkpoint_warning = 30s                # 0 disables
+
+  ==> Restart the cluster
+
+  ==> creating tables by using pgbench
+[postgres@postgres11 data]$ pgbench -i -s 50
+
+postgres=# \dt+
+                            List of relations
+ Schema |       Name       | Type  |  Owner   |    Size    | Description
+--------+------------------+-------+----------+------------+-------------
+ public | pgbench_accounts | table | postgres | 640 MB     |
+ public | pgbench_branches | table | postgres | 8192 bytes |
+ public | pgbench_history  | table | postgres | 0 bytes    |
+ public | pgbench_tellers  | table | postgres | 24 kB      |
+(4 rows)
+
+  ==> After some time observe the  log file,we got the below
+ 
+2021-06-23 18:58:48.975 IST,,,,,6134LOG:  checkpoints are occurring too frequently (4 seconds apart)
+2021-06-23 18:58:48.975 IST,,,,,6134HINT:  Consider increasing the configuration parameter "max_wal_size".
+2021-06-23 18:58:48.975 IST,,,,,6134LOG:  checkpoint starting: xlog
+2021-06-23 18:58:51.635 IST,,,,,6134LOG:  checkpoint complete: wrote 135 buffers (0.8%); 0 WAL file(s) added, 1 removed, 3 recycled; write=2.237 s, sync=0.174 s, total=2.660 s; sync files=1, longest=0.174 s, average=0.174 s; distance=64181 kB, estimate=66377 kB
+Example-2:
+=========
+ ==> Checkpoint trigger based on max_wal_size reached
+
+checkpoint_timeout = 5min                # range 30s-1d
+max_wal_size = 100MB
+min_wal_size = 50MB
+checkpoint_completion_target = 0.5      # checkpoint target duration, 0.0 - 1.0
+checkpoint_flush_after = 256kB          # measured in pages, 0 disables
+checkpoint_warning = 30s  
+
+[postgres@postgres11 data]$ pgbench -i -s 50
+
+postgres=# \dt+
+                            List of relations
+ Schema |       Name       | Type  |  Owner   |    Size    | Description
+--------+------------------+-------+----------+------------+-------------
+ public | pgbench_accounts | table | postgres | 640 MB     |
+ public | pgbench_branches | table | postgres | 8192 bytes |
+ public | pgbench_history  | table | postgres | 0 bytes    |
+ public | pgbench_tellers  | table | postgres | 24 kB      |
+(4 rows)
+
+2021-06-23 19:22:18.430 IST,,,,,7149LOG:  checkpoints are occurring too frequently (19 seconds apart)
+2021-06-23 19:22:18.430 IST,,,,,7149HINT:  Consider increasing the configuration parameter "max_wal_size".
+2021-06-23 19:22:18.431 IST,,,,,7149LOG:  checkpoint starting: xlog
+2021-06-23 19:22:23.340 IST,,,,,7149LOG:  checkpoint complete: wrote 391 buffers (2.4%); 0 WAL file(s) added, 1 removed, 3 recycled; write=4.365 s, sync=0.237 s, total=4.910 s; sync files=30, longest=0.173 s, average=0.007 s; distance=66807 kB, estimate=66807 kB
+2021-06-23 19:22:24.137 IST,pgbench,postgres,postgres,[local],7430LOG:  duration: 17885.257 ms
+2021-06-23 19:22:24.141 IST,pgbench,postgres,postgres,[local],7430LOG:  disconnection: session time: 0:00:58.514 user=postgres database=postgres host=[local]
+2021-06-23 19:27:18.403 IST,,,,,7149LOG:  checkpoint starting: time
+2021-06-23 19:27:18.549 IST,,,,,7149LOG:  checkpoint complete: wrote 1 buffers (0.0%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.100 s, sync=0.003 s, total=0.146 s; sync files=1, longest=0.003 s, average=0.003 s; distance=38464 kB, estimate=63973 kB
+
+
+
+
+How to get the wal file size:
+=============================
+-sh-4.1$ pwd
+/u01/pgsql/data
+-sh-4.1$ cd pg_xlog/
+-sh-4.1$ du -sm *
+16      000000010000000000000009
+16      00000001000000000000000A
+16      00000001000000000000000B
+16      00000001000000000000000C
+16      00000001000000000000000D
+16      00000001000000000000000E
+16      00000001000000000000000F
+16      000000010000000000000010
+1       archive_status
+-sh-4.1$
+
+
+max_wal_size=64MB --if we give like this only 4 files can accomodating(4*16=64MB).
+
+after 4 files compmleted it will recyle the data.means after 4 cyles then log swicth to file1.
+
+max_wal_size=64MB
+
+checkpoint invoke every 5 min and after 64MB(MAX_WAL_SIZE) is exasted checkpoint is created.
+
+for example i given max_wal_size=64MB
+so in this situation 4 wal files created like below
+file1
+file2
+file3
+file4
+
+after file4 checkpoin it is created and it moving to file1. and this happens less  than 30S(CHECKPOINT_WARNING) hen it will thros error like below.
+
+LOG:  checkpoints are occurring too frequently (11 seconds apart)
+HINT:  Consider increasing the configuration parameter "checkpoint_segments".
+LOG:  checkpoints are occurring too frequently (3 seconds apart)
+HINT:  Consider increasing the configuration parameter "checkpoint_segments"
+
+
+
+Conclusion:
+===========
+checkpointer is ensure consistency along with writing data fro shared buffers innto data files.
+
+checkpointer will write the data in 2 cases.
+=========================================
+1.every 5min(default value).
+2.When your max_wal_size is reached. and it needs to wal files recyles before 5mins.
+
+
+Background writer:
+=================
+it will writes dirty buffers from shared buffers to data files.
+
+# - Background Writer -
+
+#bgwriter_delay = 200ms                 # 10-10000ms between rounds			------>	default value is 200ms									
+#bgwriter_lru_maxpages = 100            # 0-1000 max buffers written/round                ----->how many pages that has to write.
+#bgwriter_lru_multiplier = 2.0          # 0-10.0 multipler on buffers scanned/round      ------>how many buffers that has to clean( if you requested one update and updates 
+
+
+	==>	bgwriter_delay [200ms by default , 10ms – 10s possible] – This parameter specifies how long the process should wait between successive executions.
+
+	==>	bgwriter_lru_maxpages [100 pages by default, 0 – 1000 possible] – The bgwriter_lru_maxpages parameter specifies the maximum number of buffers that will be written by the process in each iteration.
+
+	==>	bgwriter_lru_multiplier [2.0 by default, 0-10.0 possible] – multiplier ratio determining how many pages should be cleaned for every incoming dirty page, based on counts from last delay periods. 
+		For example, if the value is set to 2, and if incoming buffers pages are 10, dirty buffers will be cleared until there are 20 buffers available or until bgwriter_lru_maxpages has been written.
+
+	==>	Note:The main objective of background writer process is to make sure that free buffers are available for use.
+
+Examples:
+	==>Needs 2 pages then it will clear 2*2.0=4pages it has to clear.
+	==>multiplier=2.0 -- there is no space for obejects/one update is came that need for 2 pages and it will asl to 
+		bgwriter pls alocate the space on shared bufefrs.
+
+
+
+#bgwriter_flush_after=512KB
+
+
+-------------     --------------
+-------------     -------------
+-------------     -------------
+-------------     -----------
+-------------      -----------
+-------------(100)  ---------(150)
+
+blocks are called as  Pages in postgres.
+
+the above data is shared bufefrs and which contains 250 pages. and default pages size 8kb.
+
+background writer writes the 100 pages into data file and sleep 200s.
+
+then again bgwriter writes 100 pages into data file and sleep for 200s and the process  goes on until this server is up and running.
+
+example:1
+=======
+
+#bgwriter_delay = 4min --> suppose i increased this value from 200s to 4min 
+
+1. at 10.00am checkpoint is invoked and it will write all dirty buffers from shared buffers to data files.   --.next checkpoint invoke at 10.05
+2. at 10.01 background writer is invoked and it will write all dirty buffers from shared buffers to data files.
+3.10.02 i have done some transaction and 200 dirty buffers are there in shared buffers.
+
+after next checkpoint is invoke at 10.05.
+after next bgwriter is invoke at 10.04    ---first bgwriter is invoke at 10.01  (given 4mins, for every 4mins bg writer is invoked)
+
+so from 10.01 to 10.4 there is a some dirty buffers in shared buffers.
+
+who ever comes first it will write the dirty buffers from shared buffers to data files.
+
+
+
+WAL Writer:
+===========
+	==>	For this there is no parameter and if something has changed and issue a commit then wal writer writes the data from wal buffers to wal files.
+		in sequential manner.
+
+Auto vaccumlauncher:
+======================
+
+	==>	Autovacuum launcher is an optional process and it is enabled by default in PostgreSQL. This process automates the execution of vacuum and analyzes 
+			commands based on a few parameters.
+	==>	its abckground process and it does maintananecne activity.  ( separate sesion for this)
+	==>	Autovaccumis launcherhas autovaccum worker process and it get invoe and it assign tasks to autovaccum worker process.
+
+	==>	your table needs vaccum means your autovaccum launcher gets invoked and it asks to one of the background process worker process to do a vaccum on table.
+
+Stats collector:
+==============
+	==>	The stats collector process collects statistics about the database. It’s an optional process with the default value as on.
+	==>	its gather information about changes activity in ur database.
+	==>	it gather the server statistics to till date and it stores into separate table.
+	Examples:
+		how many times checkint is invoked lat 2hrs. and how many pages has written by checkpoint and by bgwriter.
+Logger:
+=====
+
+# These are only used if logging_collector is on:
+log_directory = 'log'           # directory where log files are written,
+                                        # can be absolute or relative to PGDATA
+log_filename = 'alert_postgresql.log'   # log file name pattern,
+                                        # can include strftime() escapesWS2
+
+
+log_truncate_on_rotation = on    
+
+
+	==>	By default loging is eabled inoracle. in case of postgresql w e need to enable the logging.
+	==>	There is no default alert log mechanisam. once enable logging the logger process is created and writes log into aler tlogile
+
+only logger process is up and running then only it will write the log into alert log file.
+
+parameters:
+===========
+default all the below parameter are enabed and colelct the statistics and stored into a separate table.
+RUNTIME STATISTICS
+#------------------------------------------------------------------------------
+
+# - Query/Index Statistics Collector -
+
+#track_activities = on
+#track_counts = on
+#track_functions = none                 # none, pl, all
+#track_activity_query_size = 1024
+#update_process_title = on
+#stats_temp_directory = 'pg_stat_tmp'    --> all the stats information will stored in this directory.
+
+track_counts = on --> by default its enabled and it collect the statistics.
+
+
+
+Instance recovery:
+=================
+	==>	Postmaster process will do instance recovery.
+
+	==>	After update statement and commit after instance will crash.
+
+	==>	commit means all updated data has copied into the wal files.
+
+	==>	During the instance recovery, postmaster process will check the data from data files and wal files. if data is diff then it will do rollforward.
+
+	==>	when in oracle when u do commit , log writer immediately raise a checkpointer.
+
+	==>	checkpointer update the data into control file and wal files and issue db writer.
+
+
+
+to see control file data:
+[postgres@pos_master bin]$ /usr/local/pgsql/bin/pg_controldata /u01/data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,96 @@
+
+PG_BASEBACKUP using low level API:  deprecated
+
+
+pg_basebackup using high level API:
+
+
+pg_basbeackup:
+===========
+
+To take the entire cluster backup by using pg_basebackup:
+=========================================================
+==>pg_basebackup is used to take base backups of a running PostgreSQL database cluster.
+==>pg_basebackup makes a binary copy of the database cluster files, while making sure the system is put in and out of backup mode automatically.
+==>Backups are always taken of the entire database cluster; it is not possible to back up individual databases or database objects. 
+==>For individual database backups, a tool such as pg_dump must be used
+
+Step-1: To create Backup directory
+==================================
+
+[root@postgres11_custom_cre ~]# mkdir -p /u01/basebkp
+[root@postgres11_custom_cre ~]# chown -R postgres:postgres /u01/basebkp
+[root@postgres11_custom_cre ~]# chmod -R 775 /u01/basebkp
+
+Step-2: To take the backup from Tar format
+==========================================
+
+[postgres@postgres11_custom_cre ~]$ cd /u01/postgres/bin
+[postgres@postgres11_custom_cre bin]$
+[postgres@postgres11_custom_cre bin]$ ./pg_basebackup -U postgres -p 5432 -D /u01/basebkp/clu_bkp -Ft -Xs -P
+39319/39319 kB (100%), 2/2 tablespaces
+
+Step-3: To check the backup is came or not
+==========================================
+
+[postgres@postgres11_custom_cre bin]$ cd /u01/basebkp
+[postgres@postgres11_custom_cre basebkp]$ ls -lrt
+total 4
+drwx------. 2 postgres postgres 4096 Jul 14 07:29 clu_bkp
+
+[postgres@postgres11_custom_cre basebkp]$ cd clu_bkp
+[postgres@postgres11_custom_cre clu_bkp]$ ls -lrt
+total 55712
+-rw-------. 1 postgres postgres     1536 Jul 14 07:29 17062.tar
+-rw-------. 1 postgres postgres 40263168 Jul 14 07:29 base.tar
+-rw-------. 1 postgres postgres 16779264 Jul 14 07:29 pg_wal.tar
+
+Step-4: To untar the backup
+===========================
+[postgres@postgres11_custom_cre clu_bkp]$ tar -xvf base.tar
+[postgres@postgres11_custom_cre clu_bkp]$ tar -xvf pg_wal.tar
+000000010000000000000003
+archive_status/000000010000000000000003.done
+
+[postgres@postgres11_custom_cre clu_bkp]$ mv 000000010000000000000003 pg_wal
+
+==> Remove the tar files
+
+[postgres@postgres11_custom_cre clu_bkp]$ rm -rf pg_wal.tar
+[postgres@postgres11_custom_cre clu_bkp]$ rm -rf base.tar
+
+Step -5:To start the cluster from new backup Data_Directory
+============================================================
+
+==> To change the port number
+
+listen_addresses = '*   '               
+port = 5555  
+
+==> To start the cluster
+
+[postgres@postgres11_custom_cre ~]$ /u01/postgres/bin/pg_ctl -D /u01/basebkp/clu_bkp start
+waiting for server to start....2021-07-14 07:44:50.599 IST [3601] LOG:  listening on IPv4 address "0.0.0.0", port 5555
+2021-07-14 07:44:50.599 IST [3601] LOG:  listening on IPv6 address "::", port 5555
+2021-07-14 07:44:50.603 IST [3601] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5555"
+2021-07-14 07:44:50.616 IST [3602] LOG:  database system was shut down at 2021-07-14 07:43:59 IST
+2021-07-14 07:44:50.619 IST [3601] LOG:  database system is ready to accept connections
+ done
+server started
+[postgres@postgres11_custom_cre ~]$ psql -p 5555
+psql (8.4.20, server 11.0)
+WARNING: psql version 8.4, server version 11.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ dvdrental | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(4 rows)

@@ -1,0 +1,42 @@
+1.What are indexes in PostgreSQL?
+2.What is write ahead logging?
+3.What is maximum size of table in postgresql?
+4.What are the advantages of PostGRESQL?
+5.How many types of instalation on Postgres?
+6.Which are different types of database administration tools used in Postgresql?
+7.How To Start The Database Server and how to stop the database server?
+8.How To Check Whether Postgresql Server Is Up And Running?
+9.How to check users connections in postgres?
+10.Explain About Database Administration Tools?
+11.How To Take Backup Of Database?
+12.How To Create A Postgresql User?
+13.What is the difference between users and roles?
+14.How to take the single table backup in postgres?
+15.How to check the postgresql version in DB level and OS level?
+16.What is the utility by using create cluster?
+17.What is the utility by using start the cluster?
+18.What are the PostgreSQL Keys, Constraints and Indexes?
+19.How to change the users password in postgres?
+20.How many clusters created in one server? it's possible or not?
+21.Difference betwween logical backup and physical backup?
+22.Difference between pg_dump and pg_dumpall?
+23.How to do cluster cloning in postgres?
+24.How to do PITR in postgres?
+25.How to configure Streaming Replication?
+26.How to know which parameter requires restart cluster services or not?
+27.How to troubleshoot slow queries in postgres?
+28.How to see the explain plaan for SQL Statement?
+29.What is the use of pgbadger,pgbouncer?
+30.How to enable full loging mechanisum?
+31.Difference between source code and Yum Instalation?
+32.What is extension in postgres?
+33.How to kill the sessions?
+34.how many types of Vaccum...what is the difference between them and when would you use them
+35. what are tupples 
+36. how postgresql manage undo
+37. how postgresql manage consistency of data that is being updated 
+38. different type of backups 
+39. how will u troubleshoot if a someone from application team not able to connect to database
+40. which files will you check and what will you check in those files
+41. when will u go for vaccum? i.e. in what condition....we know after table update but how much % of data change reqd compulsory vaccum
+

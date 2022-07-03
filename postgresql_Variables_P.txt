@@ -1,0 +1,499 @@
+How to use postgresql.conf to configure and tune the postgres server:
+=====================================================================
+Agenda
+======
+1.Who is EDB?
+2.About postgresql.conf
+3.Interacting with postgresql.conf
+   > Allowed change context (reload,restart,recompile)
+   > Ways to change and apply settings 
+4.Parameters classification
+5.Tunning recomandations
+6.Tuning Tools
+7.Q & A
+
+
+About postgresql.conf
+=====================
+ A configuration parameter file that resides in postgres cluster (data directory) to specify the server behaviour on connection,
+  memory,logging,vaccuming and other behaviors.
+
+File specifications:
+
+--> Located in $PGDATA /postgresql.conf (some distro puts in/etc)
+--> A plain text with tunable settings
+--> Each parameter preceded by pound sign ('#')
+--> At the begginning they are set with default values 
+--> Number of tunable parameters in postgresql.conf file -270+
+
+Interacting with postgresql.conf 
+================================
+--> Every setting in file consists of 
+          name = value
+--> "name" is parameter name/Grand unified configuration (GUC)
+--> "value" is a unit that parameter accepts,which can be boolean,integer,float,units(kb,mb,gb,tb),time(ms,s,min,h,d),stringsand lists
+  Example : 
+            shared_buffers=1GB
+
+Allowed change context:
+=======================
+
+
+Every configuration setting has an associated context in which it's allowed to be changed.There are set of context types:
+
+postgres=# select distinct context from pg_settings order by context;
+      context
+-------------------
+ backend
+ internal
+ postmaster
+ sighup
+ superuser
+ superuser-backend
+ user
+(7 rows)
+
+
+
+> Internal          - A parameter can only be set at compile time
+> Postmaster        - A parameter is updated only when a full server restart is done.
+> Signup            - A parameter is changed by sending server a HUP signal (pg_ctl reload).
+> Backend           - A parameter is similar to 'signup' ,however changes will not impact any already running database backend sessions.
+                      Only new sessions accept the new changes.
+> Superuser-backend - A parameter is similar to "signup",how ever changes will not impact any already running database backend sessions.
+                      Only new sessions accept the new changes(Only superuser change the settings).
+> Superuser         - A parameter can be changed by any database superuser.Requires reload the services and it reflect for already connected users and newly connected users.
+> User              - A parameter can be changed by the individual user in his session (per - session basis).
+
+postgres=# select name,setting,context from pg_settings where context='internal';
+         name          |   setting   | context
+-----------------------+-------------+----------
+ block_size            | 8192        | internal
+ data_checksums        | off         | internal
+ data_directory_mode   | 0700        | internal
+ debug_assertions      | off         | internal
+ integer_datetimes     | on          | internal
+ lc_collate            | en_US.UTF-8 | internal
+ lc_ctype              | en_US.UTF-8 | internal
+ max_function_args     | 100         | internal
+ max_identifier_length | 63          | internal
+ max_index_keys        | 32          | internal
+ segment_size          | 131072      | internal
+ server_encoding       | UTF8        | internal
+ server_version        | 11.0        | internal
+ server_version_num    | 110000      | internal
+ wal_block_size        | 8192        | internal
+ wal_segment_size      | 16777216    | internal
+(16 rows)
+
+postgres=# select name,setting,context from pg_settings where context='postmaster';
+                name                 |          setting          |  context
+-------------------------------------+---------------------------+------------
+ allow_system_table_mods             | off                       | postmaster
+ archive_mode                        | off                       | postmaster
+ autovacuum_freeze_max_age           | 200000000                 | postmaster
+ autovacuum_max_workers              | 3                         | postmaster
+ autovacuum_multixact_freeze_max_age | 400000000                 | postmaster
+
+postgres=# select name,setting,context from pg_settings where context='sighup';
+                  name                  |         setting         | context
+----------------------------------------+-------------------------+---------
+ archive_command                        | (disabled)              | sighup
+ archive_timeout                        | 0                       | sighup
+ authentication_timeout                 | 60                      | sighup
+ autovacuum                             | on                      | sighup
+ autovacuum_analyze_scale_factor        | 0.1                     | sighup
+ autovacuum_analyze_threshold           | 50                      | sighup
+
+postgres=# select name,setting,context from pg_settings where context='backend';
+         name          | setting | context
+-----------------------+---------+---------
+ ignore_system_indexes | off     | backend
+ post_auth_delay       | 0       | backend
+(2 rows)
+
+postgres=# select name,setting,context from pg_settings where context='superuser-backend';
+         name          | setting |      context
+-----------------------+---------+-------------------
+ jit_debugging_support | off     | superuser-backend
+ jit_profiling_support | off     | superuser-backend
+ log_connections       | on      | superuser-backend
+ log_disconnections    | on      | superuser-backend
+(4 rows)
+
+==> To check below parameter:
+
+EX:postgres=# show log_connections;
+ log_connections
+-----------------
+ on
+(1 row)
+==> To check content of postgresql.auto.conf:
+
+[postgres@postgres11ss data]$ cat postgresql.auto.conf
+# Do not edit this file manually!
+# It will be overwritten by the ALTER SYSTEM command. 
+
+==> Changing below parameter by using alter system command:
+
+postgres=# alter system set log_connections=off;
+ALTER SYSTEM
+==> Now checking the below parameter:
+
+postgres=# show log_connections;
+ log_connections
+-----------------
+ on
+(1 row)
+==> Now checking the content of postgresql.auto.conf: 
+
+Note: All the parameter values will be saved in postgresql.auto.conf which they are changing by ALTER statements.
+
+When ever restart the services or reload The server process will read the parameters values from postgresql.auto.conf and update the values postgresql.conf file.
+
+[postgres@postgres11ss data]$ cat postgresql.auto.conf
+# Do not edit this file manually!
+# It will be overwritten by the ALTER SYSTEM command.
+log_connections = 'off'
+
+==> Take duplicate session and reload the services and check the parameter value:
+
+
+[postgres@postgres11ss ~]$ /usr/local/pgsql/bin/pg_ctl -D /u01/data reload
+server signaled
+
+postgres=# show log_connections;
+ log_connections
+-----------------
+ off
+(1 row)
+
+Note: Still this parameter value showing "on" for existing connection.
+postgres=# show log_connections;
+ log_connections
+-----------------
+ on
+(1 row)
+
+
+postgres=# select name,setting,context from pg_settings where context='superuser';
+            name            |   setting   |  context
+----------------------------+-------------+-----------
+ commit_delay               | 0           | superuser
+ deadlock_timeout           | 1000        | superuser
+ dynamic_library_path       | $libdir     | superuser
+ ignore_checksum_failure    | off         | superuser
+ jit_dump_bitcode           | off         | superuser
+ lc_messages                | en_US.UTF-8 | superuser
+
+
+postgres=# select name,setting,context from pg_settings where context='user';
+                name                 |      setting       | context
+-------------------------------------+--------------------+---------
+ application_name                    |                    | user
+ array_nulls                         | on                 | user
+ backend_flush_after                 | 0                  | user
+ backslash_quote                     | safe_encoding      | user
+ bytea_output                        | hex                | user
+ check_function_bodies               | on                 | user
+
+
+Ways to change and apply settings:
+================================== 
+
+As per parameter context ,to update values there two ways change
+
+# Reload 
+========
+
+   & pg_reload_conf()
+   & pg_ctl -D <data_directory> reload (SIGNUP)
+   & HUP postmaster 
+   
+# Restart
+=========
+
+   & pg_ctl restart 
+   & OS service restart 
+   
+# Other changes
+===============
+    
+	& ALTER SYSTEM 
+	& ALTER DATABASE<dbname> SET <parameter setting>
+	& ALTER USER <username> SET < parameter setting>
+	
+# Session level
+===============
+    & BEGIN..SET <parameter setting>;END;
+	
+
+PARAMETER CLASSIFICATIONS...1
+===============================
+
+  postgrsql.conf    File location 
+                   
+				  configuration file locations
+                    data_directory
+                 	hba_file
+                    ident_file
+                    external_pid_file  
+					
+  postgresql.conf  	connection and Authentication
+            
+                    connection and authentication           TCP/IP control               Security and Authentication
+                    =============================           ===============              ===========================
+                    listen_addresses                       tcp_keepalives_idle            authentication_timeout
+                    port                                   tcp_keepalives_interval        ssl
+                    max_connections                        tcp_keepalives-count           ssl_renegotiation_limit 
+                    superuser_reserved_connections         tcp_user_timeout               ssl_ciphers
+                    unix_socket_directory                                                 password_encryption
+					unix_socket_group                                                     krb_server_file
+					unix_socket_permissions                                               krb_srvname
+					bonjour                                                               krb_caseins_users
+					bonjour_name                                                          db_user_namespace
+					
+PARAMETER CLASSIFICATIONS...2
+==============================
+postgresql.conf     RESOURCE USAGE (eccept WAL)
+               
+			     Memory usage                   Disk/KernalResource         Vacuum and Background Worker
+				 ============                   ====================        =============================
+				 shared_buffers                 temp_file_limit             vacuum_cost_delay
+				 huge_pages                     max_files_per_process       vacuum_cost_page_hit
+				 temp_buffers                                               vacuum_cost_page_miss
+				 max_prepared_transactions                                  vacuum_cost_page_dirty
+				 work_mem                                                   vacuum_cost_limit
+				 maintenanace_work_mem                                      bgwritter_delay
+				 autovaccum_work_mem                                        bgwritter_lru_maxpages 
+				 max_stack_depth                                            bgwritter_lru_multiplier
+				 shared_memory_type                                         bgwritter_flush_after
+				 dynamic_shared_memory_type                                 effective_lo_concurrency
+				                                                            max_worker_processes
+																			max_parallel_maintenance_workers
+																			max_parallel_workers_per_gather
+																			parallel_leader_participation
+																			max_parallel_workers
+																			old_snapshot_threshold
+																			backend_flush_after
+
+
+PARAMETER CLASSIFICATIONS...3
+=============================
+postgresql.conf      WRITE-AHEAD LOG
+                 
+                   Write-Ahead Log(WAL)            Checkpoint and Archiving       Archive/Recovery target
+                   ====================            ========================       =======================
+                   wal_level                       checkpoint_timeout             restore_command
+                   fsync                           max_wal_size                   archive_cleanup_command
+                   synchronous_commit              min_wal_size                   recovery_end_command
+                   wal_sync_method                 checkpoint_completion_target   recovery_target
+                   full_page_writes                checkpoint_flush_after         recovery_target_name 
+                   wal_compression                 checkpoint_warning             recovery_target_time
+                   wal_log_hints                   archive_mode                   recovery_target_xid 
+                   wal_init_zero                   archive_command                recovery_target_lsn
+                   wal_recyle                      archive_timeout                recovery_target_inclusive
+                   wal_buffers                                                    recovery_target_timeline
+                   wal_writer_delay                                               recovery_target_action
+                   wal_writer_flush_after
+                   commit_delay				   
+				   commit_siblings															
+				   
+				   
+PARAMETER CLASSIFICATIONS...4
+=============================
+postgresql.conf        Replication
+          
+                   Sending Server		       Master Server			    standby Server 	                 	Subscriber Server
+				   ==============              ==============               ===============                     ==================
+				   max_wal_senders             synchonous_standby_names     primary_conninfo                    max_local_replication_workers
+				   wal_keep_segments           vaccum_deller_cleanup_age    primary_slot_name                   max_sync_workers_per_subscription
+				   wal_sender_timeout                                       promote_trigger_file
+				   max_replication_slots                                    hot_standby
+				   track_commit_timestamp                                   max_standby_archive_delay
+				                                                            max_standby_streaming_delay
+																			wal_reciver_status_interval
+																			hot_standby_feedback
+																			wal_reciver_timeout
+																			wal_reciver_retry_interval
+																			recovery_min_apply-delay
+																			
+																			
+PARAMETER CLASSIFICATIONS...5
+=============================
+postgresql.conf          Query Tuning 
+
+                       Planner Method                    Planner Constraints              Planner GEQO            Other Planner Options
+                       ================			  		 ====================             =============           ======================
+					   enable_bitmapscan                 seq_page_cost                    gepo                    default_statistics_target
+					   enable_hashagg                    random_page_cost                 gepo_threshould         constraint_exclusion
+					   enable_hashjoin                   cpu_tuple_cost                   gepo_effort             curser_tuple_fraction
+					   enable_indexscan                  cpu_index_tuple_cost             gepo_pool_size          from_collapse_limit
+					   enable_indexonlyscan              cpu_operator_cost                gepo_generations        join_collapse_limit
+					   enable_material                   parallel_tuple_cost              gepo_selection_bias     force_parallel_mode
+					   enable_mergjoin                   parallel_setup_cost              gepo_seed               jt
+					   enable_nestloop                   jt_above_cost                                            plan_cache_mode
+					   enable_parallel-append            jt_inline_above_cost
+					   enable-seqscan                    jt_optimize_above_cost
+					   enable_sort                       min_parallel_table_scan_size
+					   enable_tdscan                     min_parallel_index_scan_size
+					   enable_partitionwise_join         effective_cache_size
+					   enable_partitionwise_aggregate
+					   enable_parallel_hash
+					   enable_partition_pruning
+					   
+					   
+PARAMETER CLASSIFICATIONS...6
+==============================
+postgresql.conf          Reporting angLogging
+
+                        Logging(where to log)          Logging(when to log)			  Logging( what to log)		   
+					    =====================          ====================           =====================
+						log_destination                log_min_messages               debug_print_parse
+						logging_collector              log_min_error_statement        debug_print_rewritten
+						log_directory                  log_min_duration_statement     debug_print_plan 
+						log_filename                   log_transaction_sample_rate    debug_pretty_print
+						log_file_mode                                                 log_checkpoints
+						log_truncate_on_rotation                                      log_connections
+						log_rotation_age                                              log_disconnections
+						log_rotation_size                                             log_duration
+						syslog_facility                                               log_error_verbosity
+						syslog_ident                                                  log_hostname
+						syslog_sequence_numbers                                       log_line_prefix
+						syslog_split_messages                                         log_lock_walls
+						event_source                                                  log_statement
+						                                                              log_replication_commands
+																					  log_temp_files
+																					  log_timezone
+																					  
+																					  
+PARAMETER CLASSIFICATIONS...7
+=============================
+postgresql.conf      Statistics
+
+                    Statistics                    Montoring               
+                    ===========                   ========== 
+                    track_activities              log_parser_stats
+                    track_counts                  log_planner_stats
+                    track_functions               log_encounter_stats
+                    track_io_timing               log_statement_stats
+                    track_activity_query_size
+                    stats_temp_directory					
+					
+					
+PARAMETER CLASSIFICATIONS...8
+=============================					
+postgresql.conf     Autovacuum
+
+                  Autovacuum
+				 ============
+                 autovacuum
+                 log_autovacuum_min_duration
+                 autovacuum_max_workers
+                 autovacuum_naptime
+                 autovacuum_vacuum_threshold
+                 autovacuum_analyze_threshold
+                 autovacuum_vacuum_scale_factor
+                 autovacuum_analyze_scale_factor
+                 autovacuum_freeze_max_age				 
+				 autovacuum_vacuum_cost_delay
+				 autovacuum_vacuum_cost_limit
+				 
+				
+PARAMETER CLASSIFICATIONS...9
+==============================
+postgresql.conf       Client connection Defaults				
+				
+				    Statement Behaviour                           Locale,formating & FTS             Shared Librery preloading
+					===================                           ======================             =========================
+					client_min_messages                           datestyle                          shared_preload_libraries
+					search_path                                   intervalstyle                      local_preload_libraries
+					flow_security                                 timezone                           session_preload_libraries
+					default_tablespaces                           timezone_abbreviations             jt_provider
+					default_table_access_method                   extra_float_digits                 dynamic_library_path
+					check_funcyion_bodies                         client_encoding
+					default_transaction_isolation                 lc_messages
+					default_transaction_read_only                 lc_monetary
+					default_transaction_deferrable                lc_numeric
+					session_replication_role                      lc_time
+					statement_timeout                             default_text_search_config 
+					lock_timeout
+					idle_in_transaction_session_timeout
+					vacuum_freeze_min_age
+					vacuum_freeze_table_age
+					vacuum_multixact_frreze_min_age
+					vacuum_multixact_freeze_table_age
+					vacuum_cleanup_index_scale_factor
+					bytes_output
+					xmfbinary
+					xmfoption
+					gin_fuzzy_search_limit
+					gin_pending_list_limit
+					  
+					  
+PARAMETER CLASSIFICATIONS...10
+==============================
+postgresql.conf       Lock Management ,Error Handling,
+                      Version and platform compatibility
+
+                       Lock Management	                     Version/Platform compatibility       Error Handling				  
+					   ================                      ==============================       ==============
+					   deadlock_timeout                      array_nulls                          exit_on_error
+					   max_locks_per_transaction             backlash_quote                       restart_after_crash
+					   max_pred_locks_per_transaction        escape_string_warning                data_sync_retry
+					   max_pred_locks_per_relation           lo_compat_privileges
+					   max_pred_locks_per_page               operator_precedence_warning
+					                                         quote_all_identifier
+															 standard_conforming_strings
+															 synchornize_seqscans
+															 transform_null_equals
+															 
+															 
+postgresql.conf      Config File Includes
+
+                   Config File Includes
+                   ====================
+                   include_dir				   
+				   include_if_exists 
+				   include
+				   
+				   
+Tuning Recommendations...1
+==========================
+--> Shared_buffers         - 15% to 25% of available RAM
+--> Maintenanace_work_mem  - Total RAM* 0.15/autovacuum_max_workers
+--> work_mem               - Total RAM* 0.25/ max_connections
+--> max_connections        - Start with default100, if required prefer connection pooler
+--> effective_cache_size   - 75% of total RAM
+--> wal_buffers            - 1\32nd of shared_buffers capped at 16MB
+--> bgwriter_delay         - Default 200ms ,lower it if heavy writes
+--> bgwritter_lru_maxpages - Increase multiplier on system witha heavy write load
+
+
+Tuning Recommendations...2
+==========================
+--> wal_level                    - 15% to 25% of available RAM
+--> min_val_size(GB)             - Setting it too low means checkpoints will occur too frequently ,increasing will beneficial for recovery times.
+    max_wal_size(GB) 
+--> checkpoint_completion_target - Higher the value,the smoother the IO of the checkpointer
+--> random_page_cost             - Increasing will result index being used over sequential scans
+--> cpu_tuple_cost               - Specifies the relative cost of the processing each row during a query
+
+
+Tuning Tools:
+============
+ Few tools will automatically tune by analyzing the server resources and configure postgreSQL server for optimal performance
+ 
+ > open source
+          # pg_tune - https://pgtune.leopard.in.ua/#/
+	  # pgbadger(a log Analyzer)- http://pgbadger.darold.net/
+
+ > For EDB customers 
+          # EDB postgres Enterprise Manager - Tuning Wizard /postgres Expert
+
+Useful Links:
+=============
+ > https://wiki.postgresql.org/wiki/performance_Optimization
+ > https://wiki.postgresql.org/wiki/Tuning_your_postgreSQL_server
+
+ 

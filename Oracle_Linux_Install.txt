@@ -1,0 +1,18 @@
+Download Oracle Virtual Box
+=======================
+Open below Link and click on Windows Hosts to download Oracle Virtual Box.
+
+https://www.virtualbox.org/wiki/Downloads
+
+Download Oracle Linux 6.9
+========================
+
+Open below link and click on 6.9  s/w under FULL ISO.
+
+https://yum.oracle.com/oracle-linux-isos.html
+
+create virtulmachine and install liniux:
+=========================================
+Follow the below link to create Virtual machine and install linux.
+
+https://databaseinternalmechanism.com/2017/01/02/installing-oracle-linux-6-on-virtualbox-vm/

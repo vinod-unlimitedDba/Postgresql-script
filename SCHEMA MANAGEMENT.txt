@@ -1,0 +1,179 @@
+SCHEMA MANAGEMENT:
+==================
+ ==> A schema is a named collection of tables. 
+ ==> A schema can also contain views, indexes, sequences, data types, operators, and functions. 
+ ==> Schemas are analogous to directories at the operating system level, except that schemas cannot be nested. 
+ ==> PostgreSQL statement CREATE SCHEMA creates a schema.
+
+SYNTAX:
+======
+ The basic syntax of CREATE SCHEMA is as follows −
+
+ CREATE SCHEMA schema name;
+ 
+ postgres=# create schema hrms;
+CREATE SCHEMA
+
+create schema if not exists str;
+
+for different ====>  create schema name authorization user;
+
+for same user ===>create schema  authorization user;
+
+select * from pg_namespace
+
+postgres=# \dn
+        List of schemas
+        Name        |  Owner
+--------------------+----------
+ hrms               | postgres
+ information_schema | postgres
+ pg_catalog         | postgres
+ pg_toast           | postgres
+ pg_toast_temp_1    | postgres
+ public             | postgres
+(6 rows)
+
+
+1.pg_catalog:
+=============
+	==>These are database specific.
+	==>If you want get data from pg_catalog and public schema tables no need to mention schemaname.tablename.
+
+\dt pg_catalog.*;
+
+2.information_schem:
+=================
+	==> it is cluster specific metadata tables.
+3.pg_toast : 
+=========
+	==>For every table, inserted data row length if not fits in the given size, it will occupies additional memory location, 
+		those additional entries will be stored under one schema , we will call that as pg_toast schema, by mistake if
+		we try to dop pg_toast schema half of the data will be gone, some times complete table may corruput.
+
+4.pg_temp_1:
+================
+	==> This is for temp purpose, if you are creating any temp tables,those entries will be stored here.
+5.pg_toast_temp_1 
+=============
+	==>: some times temp tables rows also not enough for the data, so additional data will be stored under this schema
+
+SYNTAX TO CREATE TABLE IN SCHEMA:
+=================================
+The basic syntax to create table in schema is as follows −
+
+CREATE TABLE myschema.mytable (...);
+
+postgres=# create table hrms.emp(id int,name varchar);
+CREATE TABLE
+
+postgres=# \dt hrms.*;
+        List of relations
+ Schema | Name | Type  |  Owner
+--------+------+-------+----------
+ hrms   | emp  | table | postgres
+(1 row)
+
+
+DROP SCHEMA:
+============
+
+To drop a schema if it is empty (all objects in it have been dropped), use the command −
+
+SYNTAX:
+
+DROP SCHEMA schema name;
+
+postgres=# create schema private;
+CREATE SCHEMA
+postgres=# \dn private;
+  List of schemas
+  Name   |  Owner
+---------+----------
+ private | postgres
+(1 row)
+
+postgres=# drop schema private;
+DROP SCHEMA
+postgres=# \dn private;
+List of schemas
+ Name | Owner
+------+-------
+(0 rows)
+
+TO DROP SCHEMA INCLUDING ALL CONTAINED OBJECTS:
+==============================================
+ 
+ To drop a schema including all contained objects, use the command −
+ 
+SYNTAX:
+
+DROP SCHEMA schema name CASCADE;
+
+postgres=# drop schema hrms;
+ERROR:  cannot drop schema hrms because other objects depend on it
+DETAIL:  table hrms.emp depends on schema hrms
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+
+postgres=# drop schema hrms cascade;
+NOTICE:  drop cascades to table hrms.emp
+DROP SCHEMA
+postgres=# \dn
+        List of schemas
+        Name        |  Owner
+--------------------+----------
+ information_schema | postgres
+ pg_catalog         | postgres
+ pg_toast           | postgres
+ pg_toast_temp_1    | postgres
+ public             | postgres
+(5 rows)
+
+
+HOW TO KNOW DEFAULT POSTGRESQL SCHEMA:
+======================================
+
+postgres=# show search_path;
+   search_path
+-----------------
+ "$user", public
+(1 row)
+
+
+HOW TO CHANGE THE DEFAULT SCHEMA:
+=================================
+
+postgres=# set search_path='hrms';
+SET
+
+postgres=# show search_path;
+ search_path
+-------------
+ hrms
+(1 row)
+
+HOW TO CHECK DEFAULT SCHEMA CHANGE OR NOT:
+==========================================
+
+postgres=# create table sample(id int);
+CREATE TABLE
+postgres=#
+postgres=#
+postgres=# \dt
+         List of relations
+ Schema |  Name  | Type  |  Owner
+--------+--------+-------+----------
+ hrms   | sample | table | postgres
+(1 row)
+
+NOTE:The default postgresql schema is public.
+
+select * from pg_namespace;
+
+ALTER SCHEMA
+===========
+
+ALTER SCHEMA schema_name owner to new_owner;
+
+ALTER SCHEMA name RENAME TO newname
+

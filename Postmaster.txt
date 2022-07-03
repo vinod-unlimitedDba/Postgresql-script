@@ -1,0 +1,100 @@
+POSTMASTER:
+===========
+    This is the first process started and it will start other background process when
+	you start the postgres server.
+	
+	1.Listen_addresses=*
+	====================
+	It will decide which IP make connection to the cluster.
+	
+	2.pg_hba.conf 
+	==============
+	It will decide which ip address can make connection with which database.
+	
+In pg_hba.conf file
+===================
+
+TYPE   DATABASE   USER   ADDRESS  METHOD
+
+
+If you can change the listen_address in postgres server by using below path
+============================================================================
+
+postgresql.conf file--> listen_addresses=ip address or *
+
+
+==> If you kill postmaster process ,entire cluster goes down
+     means can not access database.
+==> If you kill any other background process or any reason background process goes down
+    immediatly postmaster process will restart respective background process.
+==> Means postmaster process will moniter other background process.If any process goesdown 
+    postmaster process will reinitilaize all background process.
+	
+
+what is pg_hba.conf file?
+
+   Client authentication is controlled by a configuration file, which traditionally is named pg_hba. conf 
+   and is stored in the database cluster's data directory. conf file is a set of records.
+ 
+
+1. How to chk postmaster process or postmaster process id?
+
+[postgres@machine3 ~]$ cd /u01/data1
+[postgres@machine3 data1]$ cat postmaster.pid
+3157
+/u01/data1
+1619512491
+5432
+/tmp
+localhost
+  5432001    589838
+ready
+
+2.How to kill postmaster process??
+
+[postgres@machine3 ~]$ kill 9 3157
+-bash: kill: (9) - Operation not permitted
+[postgres@machine3 ~]$ 2021-04-27 14:11:05.641 IST [3157] LOG:  received smart shutdown request
+2021-04-27 14:11:05.663 IST [3157] LOG:  background worker "logical replication launcher" (PID 3164) exited with exit code 1
+2021-04-27 14:11:05.663 IST [3159] LOG:  shutting down
+2021-04-27 14:11:05.678 IST [3157] LOG:  database system is shut down
+
+[postgres@machine3 ~]$
+[postgres@machine3 ~]$ ps -efa|grep postgres
+root      3071  3033  0 14:03 pts/1    00:00:00 su - postgres
+postgres  3072  3071  0 14:03 pts/1    00:00:00 -bash
+postgres  3399  3072  0 14:11 pts/1    00:00:00 ps -efa
+postgres  3400  3072  0 14:11 pts/1    00:00:00 grep postgres
+
+
+3.How to kill chkpointer process??
+
+[postgres@machine3 ~]$ kill -9 3440
+[postgres@machine3 ~]$ 2021-04-27 14:12:57.394 IST [3438] LOG:  checkpointer process (PID 3440) was terminated by signal 9: Killed
+2021-04-27 14:12:57.394 IST [3438] LOG:  terminating any other active server processes
+2021-04-27 14:12:57.394 IST [3443] WARNING:  terminating connection because of crash of another server process
+2021-04-27 14:12:57.394 IST [3443] DETAIL:  The postmaster has commanded this server process to roll back the current transaction and exit, because another server process exited abnormally and possibly corrupted shared memory.
+2021-04-27 14:12:57.394 IST [3443] HINT:  In a moment you should be able to reconnect to the database and repeat your command.
+2021-04-27 14:12:57.395 IST [3438] LOG:  all server processes terminated; reinitializing
+2021-04-27 14:12:57.410 IST [3470] LOG:  database system was interrupted; last known up at 2021-04-27 14:12:24 IST
+2021-04-27 14:12:58.718 IST [3470] LOG:  database system was not properly shut down; automatic recovery in progress
+2021-04-27 14:12:58.720 IST [3470] LOG:  redo starts at 0/304EA78
+2021-04-27 14:12:58.720 IST [3470] LOG:  invalid record length at 0/304EAB0: wanted 24, got 0
+2021-04-27 14:12:58.720 IST [3470] LOG:  redo done at 0/304EA78
+2021-04-27 14:12:58.738 IST [3438] LOG:  database system is ready to accept connections
+
+[postgres@machine3 ~]$
+[postgres@machine3 ~]$ ps -efa|grep postgres]
+postgres  3496  3072  0 14:13 pts/1    00:00:00 grep postgres]
+[postgres@machine3 ~]$ ps -efa|grep postgres
+root      3071  3033  0 14:03 pts/1    00:00:00 su - postgres
+postgres  3072  3071  0 14:03 pts/1    00:00:00 -bash
+postgres  3438     1  0 14:12 pts/1    00:00:00 /usr/local/pgsql/bin/postgres
+postgres  3471  3438  0 14:12 ?        00:00:00 postgres: checkpointer
+postgres  3472  3438  0 14:12 ?        00:00:00 postgres: background writer
+postgres  3473  3438  0 14:12 ?        00:00:00 postgres: walwriter
+postgres  3474  3438  0 14:12 ?        00:00:00 postgres: autovacuum launcher
+postgres  3475  3438  0 14:12 ?        00:00:00 postgres: stats collector
+postgres  3476  3438  0 14:12 ?        00:00:00 postgres: logical replication launcher
+postgres  3500  3072  0 14:13 pts/1    00:00:00 ps -efa
+postgres  3501  3072  0 14:13 pts/1    00:00:00 grep postgres

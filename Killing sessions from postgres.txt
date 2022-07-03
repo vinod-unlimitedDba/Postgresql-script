@@ -1,0 +1,218 @@
+How to kill sessions in postgres:
+=================================
+
+pg
+
+active - This is currently running queries, in a sense this is truly how many connections you may require at a time
+idle - This is where you have opened a connection to the DB (most frameworks do this and maintain a pool of them), but nothing is happening. This is the one area that a connection pooler like pgBouncer can most help.
+idle in transaction - This is where your app has run a BEGIN but it’s now waiting somewhere in a transaction and not doing work.
+
+Who is permitted to terminate connections:
+==========================================
+
+Every database role with superuser rights is permitted to terminate database connections.
+
+We can kill the sessions in postgres two ways
+1.pg_cancel_backend()
+2.pg_terminate_backend().
+
+1.pg_cancel_backend():
+======================
+pg_cancel_backend() cancels the running query .
+The IDLE session that you have witnessed again above is after we have cancelled the query through pg_cancel_backend, 
+	the query has been cancelled by the function but the user session still is connected.
+
+Syntax:
+
+pg_cancel_backend( pid )
+
+==> When a program creates a database connection and sends queries, you can cancel one query without destroying the connection and stopping the other queries. 
+    If you destroy the entire connection, everything will be stopped.
+
+2.pg_terminate_backend():
+========================
+ pg_terminate_backend() terminates the entire process and thus the database connection.
+It terminates the entire process and database connection. It destroys everything for that particular role or user.
+ 
+How to display database sessions:
+=================================
+pg_stat_activity system view provides detailed information about server processes.
+
+SELECT datname as database,
+       procpid as pid,
+       usename as username,
+       application_name as application,
+       client_addr as client_address,
+       current_query
+  FROM pg_stat_activity;
+  
+First we will identify the session we want to end. We do it by listing all sessions on the server with this query:
+
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr from pg_stat_activity;
+ datid | datname  | pid  | usesysid | usename  | application_name | client_addr
+-------+----------+------+----------+----------+------------------+-------------
+       |          | 3267 |       10 | postgres |                  |
+       |          | 3265 |          |          |                  |
+ 13237 | postgres | 3269 |       10 | postgres |                  |
+ 13237 | postgres | 3321 |    16384 | user1    |                  |
+       |          | 3263 |          |          |                  |
+       |          | 3262 |          |          |                  |
+       |          | 3264 |          |          |                  |
+(7 rows)
+
+
+How to terminate all connections to the specified database:
+===========================================================
+
+SELECT 
+    pg_terminate_backend(pid) 
+FROM 
+    pg_stat_activity 
+WHERE 
+    -- don't kill my own connection!
+    pid <> pg_backend_pid()
+    -- don't kill the connections to other databases
+    AND datname = 'database_name'
+    ;
+==> To display connections for specific database:
+
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr from pg_stat_activity where datname='hrms';
+ datid | datname | pid  | usesysid | usename | application_name | client_addr
+-------+---------+------+----------+---------+------------------+-------------
+ 24576 | hrms    | 3413 |    24577 | user2   |                  |
+ 24576 | hrms    | 3567 |    16384 | user1   |                  |
+ 24576 | hrms    | 3626 |    24578 | user3   |                  |
+(3 rows)
+
+
+postgres=# SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'hrms';
+2021-06-17 19:18:17.312 IST [3567] FATAL:  terminating connection due to administrator command
+2021-06-17 19:18:17.314 IST [3626] FATAL:  terminating connection due to administrator command
+ pg_terminate_backend
+----------------------
+ t
+ t
+ t
+(3 rows)
+
+postgres=# 2021-06-17 19:18:17.316 IST [3681] FATAL:  terminating connection due to administrator command
+
+==> Now check the connection information:
+
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state from pg_stat_activity where datname='hrms';
+ datid | datname | pid | usesysid | usename | application_name | client_addr | state
+-------+---------+-----+----------+---------+------------------+-------------+-------
+(0 rows)
+
+Terminating connections for users:
+=================================
+==> Terminating single connection for user:
+
+==> Display the connection information from user user1:
+
+ postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state from pg_stat_activity where usename='user1';
+ datid | datname  | pid  | usesysid | usename | application_name | client_addr | state
+-------+----------+------+----------+---------+------------------+-------------+-------
+ 24576 | hrms     | 3749 |    16384 | user1   |                  |             | idle
+ 13237 | postgres | 3777 |    16384 | user1   |                  |             | idle
+(2 rows)
+
+postgres=# select pg_terminate_backend(3749);
+2021-06-17 19:56:12.180 IST [3749] FATAL:  terminating connection due to administrator command
+ pg_terminate_backend
+----------------------
+ t
+(1 row)
+
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state,query from pg_stat_activity where usename='user1';
+ datid | datname  | pid  | usesysid | usename | application_name | client_addr | state |           query
+-------+----------+------+----------+---------+------------------+-------------+-------+----------------------------
+ 13237 | postgres | 3777 |    16384 | user1   |                  |             | idle  | select * from pg_database;
+(1 row)
+
+Terminating all connections for specific user:
+==============================================
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state,query from pg_stat_activity where usename='user1';
+ datid | datname  | pid  | usesysid | usename | application_name | client_addr | state |           query
+-------+----------+------+----------+---------+------------------+-------------+-------+----------------------------
+ 24576 | hrms     | 3920 |    16384 | user1   |                  |             | idle  | select * from pg_settings;
+ 24579 | ohie     | 3933 |    16384 | user1   |                  |             | idle  | select * from pg_database;
+ 13237 | postgres | 3936 |    16384 | user1   |                  |             | idle  | select * from pg_class;
+(3 rows)
+
+postgres=# select pg_terminate_backend(pid) from pg_stat_activity where usename='user1';
+2021-06-17 20:03:07.692 IST [3920] FATAL:  terminating connection due to administrator command
+2021-06-17 20:03:07.693 IST [3933] FATAL:  terminating connection due to administrator command
+2021-06-17 20:03:07.693 IST [3936] FATAL:  terminating connection due to administrator command
+ pg_terminate_backend
+----------------------
+ t
+ t
+ t
+(3 rows)
+
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state,query from pg_stat_activity where usename='user1';
+ datid | datname | pid | usesysid | usename | application_name | client_addr | state | query
+-------+---------+-----+----------+---------+------------------+-------------+-------+-------
+(0 rows)
+
+
+
+How to kill all idle sessions:
+==============================
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state,query from pg_stat_activity where state='idle';
+ datid | datname | pid  | usesysid | usename | application_name | client_addr | state | query
+-------+---------+------+----------+---------+------------------+-------------+-------+-------
+ 24576 | hrms    | 4260 |    16384 | user1   |                  |             | idle  |
+ 24576 | hrms    | 4273 |    24577 | user2   |                  |             | idle  |
+ 24576 | hrms    | 4276 |    24578 | user3   |                  |             | idle  |
+(3 rows)
+
+postgres=# select pg_terminate_backend(pid) from pg_stat_activity where state='idle';
+2021-06-17 20:22:47.005 IST [4260] FATAL:  terminating connection due to administrator command
+2021-06-17 20:22:47.005 IST [4273] FATAL:  terminating connection due to administrator command
+2021-06-17 20:22:47.005 IST [4276] FATAL:  terminating connection due to administrator command
+ pg_terminate_backend
+----------------------
+ t
+ t
+ t
+(3 rows)
+
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state,query from pg_stat_activity where state='idle';
+ datid | datname | pid | usesysid | usename | application_name | client_addr | state | query
+-------+---------+-----+----------+---------+------------------+-------------+-------+-------
+(0 rows)
+
+
+
+pg_cancel_backend():
+=====================
+
+create database example.
+
+
+$ pgbench -i -s 50 example
+
+How to terminate all connections to the specified database:
+===========================================================
+
+==> To display connections for specific database:
+
+postgres=# select datid,datname,pid,usesysid,usename,application_name,client_addr,state,query from pg_stat_activity where datname='hrms';
+ datid | datname | pid  | usesysid | usename | application_name | client_addr | state | query
+-------+---------+------+----------+---------+------------------+-------------+-------+-------
+ 24576 | hrms    | 4931 |    16384 | user1   |                  |             | idle  |
+ 24576 | hrms    | 4934 |    24577 | user2   |                  |             | idle  |
+ 24576 | hrms    | 4938 |    24578 | user3   |                  |             | idle  |
+(3 rows)
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,75 @@
+The physical structure of PostgreSQL is straightforward; it consists of the following components:
+
+Shared Memory
+Background processes
+Data directory structure / Data files
+
+The below figure shows the PostgreSQL Architecture.
+
+What is Postgresql Instance?
+============================
+
+PostgreSQL is a relational database management system with a client-server architecture. At the server side the PostgreSQL's 
+processes and shared memory work together and build an instance, which handles the access to the data. Client programs connect to 
+the instance and request read and write operations.
+
+==>	Its client -server architecture model.
+==>	so if client send a request to the postgrev environment, in postgrev w ehave smething called memory parameters and outside we have background process.
+==>	The main process we called as postmaster. so when the request comes from client directly to the postmaster.
+	Postmaster process will check if it has all required permissios or not to connect to the database.if it passes that then there is a 
+	new  process called  postgre process started and  then the actual works is begin.
+
+Example: select stmt is comes and the actual data will beloaded into shared buffers and postgrey process will dislayto the users.
+
+There are 2 types of Architectures:
+==================================
+	a).Memory Architecture.
+	b).Process architecture.
+
+a).Memory architecture.it can be classified in 2 types.
+	1.local memory	==>which is used for own process.
+	2.Shared memory	==>which is used for all process.
+
+	==>	For example our O/S ram is 8GB.
+	==>	so 2Gb is shared memory. and local memory is 6GB.
+
+
+Local memory:
+=============
+==>	LOCAL MEMORY:-
+	
+			It is loaded by each backend process for its own use for queries processing. It is divided into sub-areas:
+			1.work_mem Space used for sorting tuples by ORDER BY DISTINCTOps and bitmap operations, hash joins, and merge joins. 
+				The default setting is 4 MB.
+			2.Maintenance_work_mem Space used for Vacuum and CREATE INDEX . The default setting is 64 MB.
+			3.Temp_buffers Space used for temporary tables. The default setting is 8 MB.
+			
+==>	SHARED MEMORY:-
+
+		It is allocated by the PostgreSQL server when it is started, and it is used by all the processes. 
+		It is divided into sub-areas:
+		
+	1.SHARED_BUFFER:Where PostgreSQL loads pages with tables and indexes from disk, to work directly from memory, reducing the disk access.
+	==================
+			
+		a.Used for cache the table data which is accessed frequently.
+
+				so for example if we reading the data as part of table like select * from emp where emno=10.
+				so that part of data is cached in the shared buffers. so first time it will read from hard disk and it will put in to the shared buffers.
+				so if I am accessing the same data second time then my query will be faster since it read from shared buffers. 		
+				if you  have bigger shared buffers if an advantage.
+				
+				so what kind of data is stored in shared buffers is table data and indexes data and basically  	
+				all pages related to this table and all are stored in this hared buffers.
+				so if you have bigger shared buffers lot of data will be stored in shared buffers.
+				so usually set shared_buffers size is 25% of the system memory but it is depends on how many clusters define  on that machine againn u set to 25% to 40% of system memory.
+
+				for monitoring shared_buffers using pg_buffer cache those tables and see how it is getting. means which tables are frequently cached based on that plans you may plan increase the shared_buffer size.
+				if you have 1 cluster you can up to 1 GB for shared_buffer size.
+	b.Postgresql loads pages with in tables and indexes from a persistent storage to here and operates to    	them directly.
+	c.Best to set this  parameter to above 25% of system memory on linux/unix system
+
+
+	2.WAL_BUFFER: 	The WAL data is the transaction log in PostgreSQL and contains the changes in the database. 
+	
+	3.COMMIT LOG: It saves the status of all transactions for concurrency control.

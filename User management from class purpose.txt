@@ -1,0 +1,393 @@
+User Managment:
+===============
+What is public :
+===============
+==> The key word PUBLIC indicates that the privileges are to be granted to all roles, including those that might be created later.
+==> PUBLIC can be thought of as an implicitly defined group that always includes all roles.
+==> Any particular role will have the sum of privileges granted directly to it, privileges granted to any role it is presently a member of, 
+    and privileges granted to PUBLIC.
+
+postgres=# REVOKE connect on database dashboard from public;
+REVOKE
+
+if you want give access on database to specific user:
+
+postgres=# GRANT CONNECT ON database dashboard to odxa;
+GRANT
+postgres=# \q
+[postgres@machine1_m_cluster bin]$ ./psql -U odxa -d dashboard -p 5432
+Password for user odxa:
+psql (11.0)
+Type "help" for help.
+
+dashboard=> 
+
+	
+User creation:
+==============
+Syntex:
+=======
+CREATE USER name [ [ WITH ] option [ ... ] ]
+
+where option can be:
+
+      SUPERUSER | NOSUPERUSER
+    | CREATEDB | NOCREATEDB
+    | CREATEROLE | NOCREATEROLE
+    | INHERIT | NOINHERIT
+    | LOGIN | NOLOGIN
+    | REPLICATION | NOREPLICATION
+    | BYPASSRLS | NOBYPASSRLS
+    | CONNECTION LIMIT connlimit
+    | [ ENCRYPTED ] PASSWORD 'password' | PASSWORD NULL
+    | VALID UNTIL 'timestamp'
+    | IN ROLE role_name [, ...]
+    | IN GROUP role_name [, ...]
+    | ROLE role_name [, ...]
+    | ADMIN role_name [, ...]
+    | USER role_name [, ...]
+    | SYSID uid
+	
+postgres=# create user appuser with password 'appuser';
+CREATE ROLE
+postgres=# \du appuser
+           List of roles
+ Role name | Attributes | Member of
+-----------+------------+-----------
+ appuser   |            | {}
+ 
+==> To see the list of user using below system view:
+     pg_user
+
+Creating role:
+=============
+
+postgres=# create role approle;
+CREATE ROLE
+postgres=#
+postgres=# \du approle;
+            List of roles
+ Role name |  Attributes  | Member of
+-----------+--------------+-----------
+ approle   | Cannot login | {}
+
+To see the list of roles use below system view:
+===============================================
+
+\d pg_roles
+
+postgres=# select rolname,rolcanlogin from pg_roles where rolcanlogin='f';
+          rolname          | rolcanlogin
+---------------------------+-------------
+ pg_monitor                | f
+ pg_read_all_settings      | f
+ pg_read_all_stats         | f
+ pg_stat_scan_tables       | f
+ pg_read_server_files      | f
+ pg_write_server_files     | f
+ pg_execute_server_program | f
+ pg_signal_backend         | f
+ role_c                    | f
+(9 rows)
+
+To list of the users:
+====================
+
+
+postgres=# select rolname,rolcanlogin from pg_roles where rolcanlogin='t';
+ rolname  | rolcanlogin
+----------+-------------
+ postgres | t
+ a        | t
+ role_a   | t
+ role_b   | t
+(4 rows)
+
+Giving login privileges to role:
+================================
+
+postgres=# alter role approle with login;
+ALTER ROLE
+postgres=#
+postgres=# \du approle
+           List of roles
+ Role name | Attributes | Member of
+-----------+------------+-----------
+ approle   |            | {}
+ 
+==> Create database and schema and two tables:
+ ==========================================
+ 
+postgres=# create database hrms;
+CREATE DATABASE
+
+hrms=# create schema hrms1;
+CREATE SCHEMA
+
+hrms=# set search_path='hrms1';
+SET
+
+hrms=# create table emp(id int);
+CREATE TABLE
+
+hrms=# create table dept(id int);
+CREATE TABLE
+
+hrms=# insert into emp values(1);
+INSERT 0 1
+hrms=# insert into dept values(1);
+INSERT 0 1
+
+hrms=# \dt
+        List of relations
+ Schema | Name | Type  |  Owner
+--------+------+-------+----------
+ hrms1  | dept | table | postgres
+ hrms1  | emp  | table | postgres
+(2 rows)
+
+hrms=# select * from emp;
+ id
+----
+  1
+(1 row)
+
+hrms==>HRMS_S==>2 tabls=>
+
+Creating role and giving permissions:
+=====================================
+
+postgres=# create role role_select with password 'role_select' login;     		# Creation of role statement
+CREATE ROLE
+
+postgres=# grant connect on databse hrms to role_select;				# For connect privileges
+
+hrms=# grant usage on schema hrms1 to role_select;					# For usage privilerges
+
+hrms=# grant select on table hrms1.emp to role_select;					# For select privileges
+GRANT
+hrms=# grant select on table hrms1.dept to role_select;
+GRANT
+
+assign member to role:
+==================
+hrms=# grant read_only to odxa;
+GRANT ROLE
+
+==> For all tables:
+===================
+
+hrms=# grant select on all tables in schema hrms1 to role_select;     			# For select privilege for all tables
+GRANT
+
+==> For all tables and privileges:
+==================================
+
+hrms=# grant all privileges on all tables in schema hrms1 to role_select;		# For all privileges for all tables
+GRANT
+==> To check the database privileges :
+======================================
+
+postgres=# \l+
+                                                                    List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges    |  Size   | Tablespace |
+    Description
+-----------+----------+----------+-------------+-------------+------------------------+---------+------------+------------
+--------------------------------
+ hrms      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |                        | 7569 kB | pg_default |
+ hrms1     | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |                        | 7569 kB | pg_default |
+ lab       | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |                        | 7569 kB | tbs        |
+ ohie      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =Tc/postgres           | 7731 kB | pg_default |
+                                                             : postgres=CTc/postgres
+                                                             : role_select=c/postgres
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |                        | 7707 kB | pg_default | default adm
+inistrative connection database
+ sample    | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |                        | 7577 kB | tbs        |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres            | 7569 kB | pg_default | unmodifiabl
+e empty database
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres            | 7569 kB | pg_default | default tem
+plate for new databases
+                                                             : postgres=CTc/postgres
+(8 rows)
+                          
+==> To check schema privileges:
+===============================
+
+  dvdrental=# \dn+  dvd_schema
+                       List of schemas
+    Name    |  Owner   |   Access privileges    | Description
+------------+----------+------------------------+-------------
+ dvd_schema | postgres | postgres=UC/postgres   |
+                       : role_select=U/postgres
+(1 row)
+                                  
+
+(6 rows)
+
+==> To check table permision using system view:
+===============================================
+
+ohie=# select grantee,grantor, privilege_type from information_schema.role_table_grants where table_name='tab1';
+   grantee   | grantor  | privilege_type
+-------------+----------+----------------
+ postgres    | postgres | INSERT
+ postgres    | postgres | SELECT
+ postgres    | postgres | UPDATE
+ postgres    | postgres | DELETE
+ postgres    | postgres | TRUNCATE
+ postgres    | postgres | REFERENCES
+ postgres    | postgres | TRIGGER
+ role_select | postgres | INSERT
+ role_select | postgres | SELECT
+ role_select | postgres | UPDATE
+ role_select | postgres | DELETE
+ role_select | postgres | TRUNCATE
+ role_select | postgres | REFERENCES
+ role_select | postgres | TRIGGER
+(14 rows)
+
+
+
+To see the users and roles  encrypted password:
+==================================
+postgres=# select rolname,rolpassword from pg_authid;
+          rolname          |             rolpassword
+---------------------------+-------------------------------------
+ postgres                  |
+ pg_monitor                |
+ pg_read_all_settings      |
+ pg_read_all_stats         |
+ pg_stat_scan_tables       |
+ pg_read_server_files      |
+ pg_write_server_files     |
+ pg_execute_server_program |
+ pg_signal_backend         |
+ role_a                    |
+ role_b                    |
+ a                         | md54124bc0a9335c27f086f24ba207a4912
+ role_c                    | md59023eabb720a9bd7751166306f9208b5
+
+Tos ee theonly users encrypted pwd:
+==================================
+postgres=# select usename,passwd from pg_shadow;
+ usename  |               passwd
+----------+-------------------------------------
+ postgres |
+ role_a   |
+ role_b   |
+ a        | md54124bc0a9335c27f086f24ba207a4912
+(4 rows)
+
+
+==> Revoke privileges :
+=======================
+
+REVOKE { { SELECT | INSERT | UPDATE | DELETE | REFERENCES }
+[,...] | ALL [ PRIVILEGES ] }
+ON tablename
+FROM { username | groupname | PUBLIC } [, ...]
+[ CASCADE | RESTRICT ]
+
+
+REVOKE { EXECUTE | ALL [ PRIVILEGES ] }
+ON FUNCTION progname
+( [ [ argmode ] [ argname ] argtype ] [, ...] )
+FROM { username | groupname | PUBLIC } [, ...]
+[ CASCADE | RESTRICT ]
+
+REVOKE { EXECUTE | ALL [ PRIVILEGES ] }
+ON PROCEDURE progname
+[ ( [ [ argmode ] [ argname ] argtype ] [, ...] ) ]
+FROM { username | groupname | PUBLIC } [, ...]
+[ CASCADE | RESTRICT ]
+
+
+==> Revoke user from role or group:
+===================================
+ 
+REVOKE role [, ...] FROM { username | groupname | PUBLIC }
+[, ...]
+[ CASCADE | RESTRICT ]
+
+ohie=# \du user2
+             List of roles
+ Role name | Attributes |   Member of
+-----------+------------+---------------
+ user2     |            | {role_select}
+
+
+ohie=# revoke role_select from user2;
+REVOKE ROLE
+ohie=# \du user2;
+           List of roles
+ Role name | Attributes | Member of
+-----------+------------+-----------
+ user2     |            | {}
+ 
+Revoke connect permission from role or user:
+============================================
+
+postgres=# REVOKE CONNECT ON DATABASE hrms FROM odxa;
+REVOKE
+postgres=#
+;
+
+==> Revoking create or usage privilege from schema:
+===================================================
+
+sampledb=# REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE
+sampledb=# \dn+
+                          List of schemas
+  Name  |  Owner   |  Access privileges   |      Description       
+--------+----------+----------------------+------------------------
+ public | postgres | postgres=UC/postgres+| standard public schema
+        |          | =U/postgres          | 
+(1 row)
+
+
+==> Revoking SELECT priviliges from user3:
+==========================================
+
+ohie=# select grantee,grantor, privilege_type from information_schema.role_table_grants where grantee='user3';
+ grantee | grantor  | privilege_type
+---------+----------+----------------
+ user3   | postgres | SELECT
+(1 row)
+
+ohie=# revoke select on ohie_schema.emp from user3;
+REVOKE
+
+ohie=# select grantee,grantor, privilege_type from information_schema.role_table_grants where grantee='user3';
+ grantee | grantor | privilege_type
+---------+---------+----------------
+(0 rows)
+
+Provide read only access for specific user:
+===========================================
+
+GRANT CONNECT ON DATABASE HRMS TO HI_DEV15;
+GRANT USAGE ON SCHEMA OHIE TO HI_DEV15;
+GRANT SELECT ON ALL TABLES TO HI_DEV15;
+
+
+REVOKE CONNECT FROM HI_DEV15;
+REVOKE SELECT ON ALL TABLES FROM HI_DEV15;
+
+drop user:
+===========
+
+
+hrms=# REASSIGN OWNED BY read_only to odxa;
+REASSIGN OWNED
+
+hrms=# DROP OWNED BY read_only;
+DROP OWNED
+hrms=# drop user read_only;
+DROP ROLE
+
+
+
+
+

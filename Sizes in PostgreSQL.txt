@@ -1,0 +1,94 @@
+1. How to find the database size in postgresql:
+===========================================
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ hrms      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ ohie      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+
+
+postgres=# SELECT pg_size_pretty( pg_database_size('postgres') );
+ pg_size_pretty
+----------------
+ 7699 kB
+(1 row)
+
+postgres=# SELECT pg_size_pretty( pg_database_size('template1') );
+ pg_size_pretty
+----------------
+ 7561 kB
+(1 row)
+
+postgres=# SELECT pg_size_pretty( pg_database_size('template0') );
+ pg_size_pretty
+----------------
+ 7561 kB
+(1 row)
+
+2. How to find the table size in postgresql:
+=============================================
+
+postgres=# select pg_relation_size('emp');
+ pg_relation_size
+------------------
+             8192
+(1 row)
+
+3. How to find the indexes size in postgres:
+============================================
+
+postgres=# select pg_size_pretty(pg_indexes_size('emp'));
+ pg_size_pretty
+----------------
+ 0 bytes
+(1 row)
+
+4. How to find the tablespace size in postgresql:
+=================================================
+
+postgres=# select pg_size_pretty(pg_tablespace_size('pg_default'));
+ pg_size_pretty
+----------------
+ 37 MB
+(1 row)
+
+postgres=# select pg_size_pretty(pg_tablespace_size('pg_global'));
+ pg_size_pretty
+----------------
+ 574 kB
+(1 row)
+
+5.How to find the schema size in postgres:
+==========================================
+6.How to find Total relation size:
+==================================
+SELECT pg_size_pretty (pg_total_relation_size ('actor'));
+
+
+
+find all relations size:
+=========================
+SELECT
+    relname AS "relation",
+    pg_size_pretty (
+        pg_total_relation_size (C .oid)
+    ) AS "total_size"
+FROM
+    pg_class C
+LEFT JOIN pg_namespace N ON (N.oid = C .relnamespace)
+WHERE
+    nspname NOT IN (
+        'pg_catalog',
+        'information_schema'
+    )
+AND C .relkind <> 'i'
+AND nspname !~ '^pg_toast'
+ORDER BY
+    pg_total_relation_size (C .oid) DESC
+LIMIT 5;

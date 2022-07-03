@@ -1,0 +1,242 @@
+ Introduction to PostgreSQL Tablespace
+===================================== 
+
+1.Tablespace is a logical storage to map a logical name(tbs1) to a physical location on disk(/u02/tbs1).
+2.Postgres tablespaces are cluster level objects(we can store any database objects in to tablespace).
+3.User/superuser must have CREATE privilege create tablespaces, but they can assign ownership of
+tablespaces to Non-superusers/Non-CREATE privilege users
+
+It has the following two default tablespaces: 
+=============================================
+pg_default: Stores all users data. 
+pg_global: Stores all global data.(system catlog tables).
+
+NOn default tablespaces will be stored under pg_tblspc.
+
+How does Tablespaces work in PostgreSQL?
+=======================================
+
+1.The user who executes the CREATE TABLESPACE is the owner of the PostgreSQL tablespace.
+2.The SQL statement also allows us to assign the ownership of it to a different user by specifying the name in the OWNER clause. 
+3.The path defined under the LOCATION clause is used to create the PostgreSQL tablespace; this path is an absolute path to an empty. In order to read and write data from/to the directory, the system user must own this directory. 
+How to create Tablespaces in PostgreSQL?
+========================================
+Let’s illustrate the following syntax for creating a new tablespace:
+
+syntax:
+=======
+CREATE TABLESPACE tablespace_name
+    [ OWNER { new_owner | CURRENT_USER | SESSION_USER } ]
+    LOCATION 'directory'
+    [ WITH ( tablespace_option = value [, ... ] ) ]
+
+
+Syntax:
+======
+CREATE TABLESPACE tablespace_name
+OWNER user_name
+LOCATION directory_path;
+
+Explanation:
+============
+1. tablespace_name
+
+The name of the PostgreSQL tablespace to create a new PostgreSQL tablespace. We can not define the name which begins with pg_; the names starting with pg_ are reserved for PostgreSQL system tablespaces. 
+
+2. user_name
+
+The name defined is the user who will own the newly created PostgreSQL tablespace. If the user_name is not defined, then the user executing the statement will own the newly created PostgreSQL tablespace. It can be created by superusers only, and they can assign the ownership of the tablespace to non-superusers. 
+
+3. directory_path
+
+It will use the directory defined under the LOCATION clause. The directory path should be defined as an absolute path. Also, the defined directory should be owned by the user and must be empty. 
+
+
+1.Create tablespace:
+====================
+
+The following example will create a tablespace named 'sample_tblspc' at a specified location.
+
+==> First create the directory from OS level and give that location:
+
+[root@postgres11 ~]# mkdir -p /u01/sample_tblspc
+[root@postgres11 ~]# chown -R postgres:postgres /u01/sample_tblspc
+[root@postgres11 ~]# chmod -R 775 /u01/sample_tblspc
+
+postgres=# create tablespace sample_tblspc location '/u01/sample_tblspc';
+CREATE TABLESPACE
+
+==> To check tablespace created or not:
+
+postgres=# \d pg_tablespace;
+  Table "pg_catalog.pg_tablespace"
+   Column   |   Type    | Modifiers
+------------+-----------+-----------
+ spcname    | name      | not null
+ spcowner   | oid       | not null
+ spcacl     | aclitem[] |
+ spcoptions | text[]    |
+Indexes:
+    "pg_tablespace_oid_index" UNIQUE, btree (oid), tablespace "pg_global"
+    "pg_tablespace_spcname_index" UNIQUE, btree (spcname), tablespace "pg_global"
+Tablespace: "pg_global"
+
+postgres=# select * from pg_tablespace;
+    spcname    | spcowner | spcacl | spcoptions
+---------------+----------+--------+------------
+ pg_default    |       10 |        |
+ pg_global     |       10 |        |
+ sample_tblspc |       10 |        |
+(3 rows)
+
+==> Set default_tablespace sample_tblspc to hrms database
+
+postgres=# create database hrms;
+CREATE DATABASE
+
+postgres=# alter database hrms set default_tablespace='sample_tblspc';
+ALTER DATABASE
+
+hrms=# show default_tablespace;
+                                       	          
+ default_tablespace
+--------------------
+ sample_tblspc
+
+NOTE: It's not showing default_tablespace as sample_tblspc in l+ and pg_database views ( it's showing pg_default only)
+
+Now onwords if you create any objects in hrms database,Those objects will be stored in new tablespace(sample_tblspc)
+
+==> Create tables
+ 
+hrms=# create table emp(id int);
+CREATE TABLE
+hrms=# create table dept(id int);
+CREATE TABLE
+
+==> To check weather above tables are stored in new tablespace(sample_tblspc) or not:
+
+ hrms=# select tablename,tablespace from pg_tables where tablename in('emp','dept');
+ tablename |  tablespace
+-----------+---------------
+ emp       | sample_tblspc
+ dept      | sample_tblspc
+(2 rows)
+
+hrms=# select pg_relation_filepath('emp');
+            pg_relation_filepath
+---------------------------------------------
+ pg_tblspc/32781/PG_11_201809051/32782/32783
+(1 row)
+
+hrms=# select pg_relation_filepath('dept');
+            pg_relation_filepath
+---------------------------------------------
+ pg_tblspc/32781/PG_11_201809051/32782/32786
+(1 row)
+
+
+
+==> Drop the tablespace
+NOTE: Before droping tablespace we have to drop all objects
+
+hrms=# drop tablespace sample_tblspc;
+ERROR:  tablespace "sample_tblspc" is not empty
+
+hrms=# drop table emp;
+DROP TABLE
+hrms=# drop table dept;
+DROP TABLE
+
+hrms=# drop tablespace sample_tblspc;
+DROP TABLESPACE
+
+
+2.ALTER THE TABLESPACE:
+=======================
+
+1.In order to perform some alter operation on tablespace using the ALTER TABLESPACE statement, you should be a superuser or the owner of it. 
+  We can not change the location used by tablespace as it’s not supported by PostgreSQL yet. 
+
+2.Consider we have a tablespace that is created, and we want to change the tablespace definition with the help of the ALTER TABLESPACE as follows: 
+
+ALTER TABLESPACE action;
+
+Explanation:
+
+Action:
+
+It allows us to perform some action like rename the tablespace name, change the owner of the tablespace and set some tablespace parameters. 
+
+ALTER TABLESPACE name RENAME TO new_name
+ALTER TABLESPACE name OWNER TO new_owner
+
+
+
+[root@postgres11 ~]# mkdir -p /u01/test_tbs
+[root@postgres11 ~]# chown -R postgres:postgres /u01/test_tbs
+[root@postgres11 ~]# chmod -R 775 /u01/test_tbs
+
+postgres=# create tablespace test_tbs location '/u01/test_tbs';
+CREATE TABLESPACE
+
+Rename the tablespace:
+
+postgres=# alter tablespace test_tbs rename to test_tbs_1;
+ALTER TABLESPACE
+postgres=# select * from pg_tablespace;
+    spcname    | spcowner | spcacl | spcoptions
+---------------+----------+--------+------------
+ pg_default    |       10 |        |
+ pg_global     |       10 |        |
+ test_tbs_1 |       10 |        |
+(3 rows)
+
+Change the owner:
+==================
+
+postgres=# create user odxa with password 'odxa';
+CREATE ROLE
+
+postgres=# alter tablespace test_tbs_1 owner to odxa;
+ALTER TABLESPACE
+
+postgres=# select * from pg_tablespace;
+    spcname    | spcowner | spcacl | spcoptions
+---------------+----------+--------+------------
+ pg_default    |       10 |        |
+ pg_global     |       10 |        |
+ test_tblspc_1 |    32789 |        |
+(3 rows)
+
+postgres=# select usename,usesysid from pg_user;
+ usename  | usesysid
+----------+----------
+ postgres |       10
+ odxa     |    32789
+(2 rows)
+
+
+==> Back to pg_default from odxa:
+================================
+
+postgres=# alter database odxa set default_tablespace='test_tbs_1';
+ALTER DATABASE
+
+odxa=# show default_tablespace;
+ default_tablespace
+--------------------
+ test_tbs_1
+(1 row)
+
+postgres=# alter database odxa set default_tablespace='pg_default';
+ALTER DATABASE
+
+odxa=# show default_tablespace;
+ default_tablespace
+--------------------
+ pg_default
+(1 row)
+
+
+

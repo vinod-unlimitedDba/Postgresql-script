@@ -1,0 +1,191 @@
+
+https://scalegrid.io/blog/postgresql-connection-pooling-part-2-pgbouncer/
+
+PGBouncer Configuration:
+========================
+1.First I had installed the PostgreSQL server(version 12.1) in the testing instance with the specification of Centos 7 OS, 2 CPU core, 2 GB RAM and 100GB SSD disk. Installing Postgresql is not the scope of this blog. 
+Please refer to this official Documentation.
+
+postgres=# select version();
+                                                 version
+---------------------------------------------------------------------------------------------------------
+ PostgreSQL 12.8 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-23), 64-bit
+(1 row)
+
+2.Now PGBouncer can be installed by passing the below command in RHEL:
+======================================================================
+
+[root@pgbouncer ~]# yum install pgbouncer
+Loaded plugins: refresh-packagekit, security, ulninfo
+Setting up Install Process
+Resolving Dependencies
+--> Running transaction check
+---> Package pgbouncer.x86_64 0:1.15.0-1.rhel6 will be installed
+--> Processing Dependency: python-psycopg2 for package: pgbouncer-1.15.0-1.rhel6.x86_64
+--> Running transaction check
+---> Package python-psycopg2.x86_64 0:2.7.5-1.rhel6.1 will be installed
+--> Processing Dependency: postgresql11-libs for package: python-psycopg2-2.7.5-1.rhel6.1.x86_64
+--> Running transaction check
+---> Package postgresql11-libs.x86_64 0:11.13-1PGDG.rhel6 will be installed
+--> Finished Dependency Resolution
+
+Dependencies Resolved
+
+==========================================================================================================================
+ Package                          Arch                  Version                          Repository                  Size
+==========================================================================================================================
+Installing:
+ pgbouncer                        x86_64                1.15.0-1.rhel6                   pgdg-common                203 k
+Installing for dependencies:
+ postgresql11-libs                x86_64                11.13-1PGDG.rhel6                pgdg11                     335 k
+ python-psycopg2                  x86_64                2.7.5-1.rhel6.1                  pgdg11                     152 k
+
+Transaction Summary
+==========================================================================================================================
+Install       3 Package(s)
+
+Total download size: 690 k
+Installed size: 2.2 M
+Is this ok [y/N]: y
+Downloading Packages:
+(1/3): pgbouncer-1.15.0-1.rhel6.x86_64.rpm                                                         | 203 kB     00:00
+(2/3): postgresql11-libs-11.13-1PGDG.rhel6.x86_64.rpm                                              | 335 kB     00:00
+(3/3): python-psycopg2-2.7.5-1.rhel6.1.x86_64.rpm                                                  | 152 kB     00:00
+--------------------------------------------------------------------------------------------------------------------------
+Total                                                                                     226 kB/s | 690 kB     00:03
+Running rpm_check_debug
+Running Transaction Test
+Transaction Test Succeeded
+Running Transaction
+  Installing : postgresql11-libs-11.13-1PGDG.rhel6.x86_64                                                             1/3
+  Installing : python-psycopg2-2.7.5-1.rhel6.1.x86_64                                                                 2/3
+  Installing : pgbouncer-1.15.0-1.rhel6.x86_64                                                                        3/3
+  Verifying  : postgresql11-libs-11.13-1PGDG.rhel6.x86_64                                                             1/3
+  Verifying  : pgbouncer-1.15.0-1.rhel6.x86_64                                                                        2/3
+  Verifying  : python-psycopg2-2.7.5-1.rhel6.1.x86_64                                                                 3/3
+
+Installed:
+  pgbouncer.x86_64 0:1.15.0-1.rhel6
+
+Dependency Installed:
+  postgresql11-libs.x86_64 0:11.13-1PGDG.rhel6                  python-psycopg2.x86_64 0:2.7.5-1.rhel6.1
+
+Complete!
+
+3.Edit the configuration file called pgbouncer.ini in the path
+==============================================================
+
+[root@pgbouncer ~]# cd /etc/pgbouncer/
+[root@pgbouncer pgbouncer]#
+[root@pgbouncer pgbouncer]#
+[root@pgbouncer pgbouncer]# ll
+total 24
+-rwx------. 1 root root  822 Nov 13  2020 mkauth.py
+-rw-r--r--. 2 root root 1142 Nov 24  2020 mkauth.pyc
+-rw-r--r--. 2 root root 1142 Nov 24  2020 mkauth.pyo
+-rw-r--r--. 1 root root 9342 Nov 24  2020 pgbouncer.ini
+[root@pgbouncer pgbouncer]# vi pgbouncer.ini
+
+;
+; pgbouncer configuration example
+; [databases]
+* = host=127.0.0.1 port=5432 dbname=postgres
+[pgbouncer]
+listen_port = 6432
+listen_addr = *
+admin_users = postgres 
+auth_type = md5
+
+; Place it in secure location
+auth_file = /etc/pgbouncer/userlist.txt
+logfile = /var/log/pgbouncer/pgbouncer.log
+pidfile = /var/run/pgbouncer/pgbouncer.pid
+; default values
+pool_mode = session
+default_pool_size = 80
+
+:wq!
+
+
+==> * = host=localhost             –>For which database you want to enable pooling. Here I have added the * for this to access all.   
+==> Listen port and Listen Address –> Which IP address and port PGBouncer process listen to.
+==> Auth_type and admin_users      –>   Authentication type to be used – Here I have mentioned md5 which requires a password for client connections and 
+                                       also requires users.txt file which comes under auth_file(It contains username and password to connect to the DB) and 
+									   admin user to connect to the DB
+==> Auth file, log and PID files   –>  Auth file is required for md5 authentication type which contains the username and its respective encrypted passwords. 
+                                       Keep the auth, log, PID files in the secure location   
+==> Pool mode and default Pool size –> Based on the pool mode, the connection will be returned to the pool. It has three values    
+                                         
+										 @ Session – Connection back to the pool when client closes the session
+                                         @ Transaction – Connection back to the pool when the transaction completes
+                                         @ Statement – Connection back to the pool when the statement completes.
+==> Here I leave it as the value default – session and also increased the pool size to 80.
+
+Okay, Now we need to make an entry in userlist.txt file with username and password to access the DB as pgbouncer is a third party tool which does not have access to these user credentials in the DB.
+
+4.Execute this query in the psql prompt
+========================================
+
+
+postgres=# select * from pg_shadow;
+ usename  | usesysid | usecreatedb | usesuper | userepl | usebypassrls |               passwd                | valuntil |
+useconfig
+----------+----------+-------------+----------+---------+--------------+-------------------------------------+----------+-
+----------
+ postgres |       10 | t           | t        | t       | t            | md53175bce1d3201d16594cebf9d7eb3f9d |          |
+(1 row)
+
+5.Create userlist.txt file
+===========================
+
+[root@pgbouncer ~]# cd /etc/pgbouncer/
+[root@pgbouncer pgbouncer]# vi userlist.txt
+[root@pgbouncer pgbouncer]#
+[root@pgbouncer pgbouncer]# cat userlist.txt
+"postgres" "md53175bce1d3201d16594cebf9d7eb3f9d"
+
+6.Now start the pgbouncer :
+===========================
+
+[root@pgbouncer ~]# service pgbouncer start
+Starting pgbouncer:                                        [  OK  ]
+[root@pgbouncer ~]#
+[root@pgbouncer ~]#
+[root@pgbouncer ~]# service pgbouncer status
+pgbouncer (pid  3801) is running...
+
+7.Now to connect the pgbouncer port 6432:
+=========================================
+
+-bash-4.1$ psql -p 6432 -h localhost -d pgbouncer
+Password:
+psql (8.4.20, server 1.15.0/bouncer)
+WARNING: psql version 8.4, server version 1.15.
+         Some psql features might not work.
+Type "help" for help.
+
+pgbouncer=# SHOW STATS;
+ database  | total_xact_count | total_query_count | total_received | total_sent | total_xact_time | total_query_time | tot
+al_wait_time | avg_xact_count | avg_query_count | avg_recv | avg_sent | avg_xact_time | avg_query_time | avg_wait_time
+-----------+------------------+-------------------+----------------+------------+-----------------+------------------+----
+-------------+----------------+-----------------+----------+----------+---------------+----------------+---------------
+ pgbouncer |                1 |                 1 |              0 |          0 |               0 |                0 |
+           0 |              0 |               0 |        0 |        0 |             0 |              0 |             0
+(1 row)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

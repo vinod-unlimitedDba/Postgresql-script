@@ -1,0 +1,59 @@
+
+--------------------------------------------
+DATA DIRECTORY EXPLANATION
+--------------------------------------------
+DD: /var/lib/pgsql/12/data/
+
+pg_twophase
+==>	pg_tblspc : This will stores information of user created tablespaces.
+==>	pg_stat:To track the system statistics required data will be stored here.
+==>	pg_snapshots : To track the history of queries, and to analyze postgresql instance, we will generate snapshots.
+==>	pg_replslot : This will stores replications slots information.
+==>	pg_dynshmem : This one will track the shared buffers utilization.
+==>	pg_commit_ts : it will keep tracking of committed transactions.
+==>	PG_VERSION : it will display postgresql version.
+==>	postgresql.conf : this is the configuration file, complete server services will be managed as per the values mentioned in this file.
+==>	postgresql.auto.conf : If you change any parameter at db level using alter system set comman instead of mentinoning in postgresql.conf file those 
+	parameters will be appears in this file.
+
+==>	pg_ident.conf : if you are using ldap accounts for login, in that case we have to mention that users in this file isntead of pg_hba.conf file.
+==>	pg_hba.conf : To manage or prevent remote based conenctions, we need to whitelist our clinet ip's and database names and user names in this file.
+==>	pg_wal : It will stores the wal files, this directory capacity is 1GB,that means at a time 64 WAL files will be avaible.
+==>	pg_subtrans : all the sub transactions information will be stored here.
+==>	pg_serial : how the transactions running whether parallely or serially.
+==>	Global: only global objects data will be stored here, (i.e users, user acccess rights, tablesapces)
+==>	base : user data by default it will be stored under this location.
+
+	[postgres@node1 base]$ pwd
+	/var/lib/pgsql/12/data/base
+	[postgres@node1 base]$
+	[postgres@node1 base]$ ls -ltr
+	total 36
+	drwx------ 2 postgres postgres 8192 Jun 9 05:08 1
+	drwx------ 2 postgres postgres 8192 Jun 9 05:08 14183
+	drwx------ 2 postgres postgres 8192 Jun 9 05:08 14184
+	[postgres@node1 base]$
+
+ 	Here howmany folders you have, that means that many number of databases are there in the instance.
+==>	pg_logical : it will stores logical replication related data.
+==>	pg_notify: notifications data will be managed here.
+==>	log: log files (aud+alert)---will be created here. this will be useufll for to track each and every activity happening at db level.
+==>	current_logfiles : this one will display current log file.
+==>	postmaster.pid : it will display postmaster process id and data directory and port and shared_buffers information kb's, and hostname.
+
+	[postgres@node1 data]$ cat postmaster.pid
+	2893
+	/var/lib/pgsql/12/data
+	1591704533
+	5432
+	/var/run/postgresql
+	localhost
+	5432001 131072
+	ready
+
+==>	pg_stat_tmp : temp stats will be stored.
+
+[postgres@node1 data]$ cat postmaster.opts
+/usr/pgsql-12/bin/postgres "-D" "/var/lib/pgsql/12/data/"
+[postgres@node1 data]$
+all the directories will contains the data

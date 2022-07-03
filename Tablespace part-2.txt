@@ -1,0 +1,313 @@
+Postgresql moving tablespace:
+=============================
+select tablename,tablespace from pg_tables where tablename
+
+==> To move the objects from pg_default to dvd_tbs:
+
+	dvdrental=# alter table all in tablespace pg_default owned by postgres set tablespace dvd_tbs;
+	ALTER TABLE
+
+To move index;
+===============
+
+ALTER INDEX ALL IN TABLESPACE name [ OWNED BY role_name [, ... ] ]
+    	SET TABLESPACE new_tablespace [ NOWAIT ]
+	
+	hrms1=# alter index all in tablespace pg_default set tablespace dvd_tbs;
+	ALTER INDEX
+
+
+
+
+	==> Postgresql tablespace moving is two types. They are:
+       
+		1. online moving -  with out database down
+		2. offline moving - with database down
+
+	==> why moving tablespace ?
+
+		once default tablespace or non-default tablespace filesystem is full means you will get issue/error  at the time of new transaction in postgresql database.
+		Error:- Cannot insert in that file id 
+		For this purpose we are moving our tabelspace to some other filesystem location
+
+	1.Online moving - with out database down:
+	=========================================
+
+	Hidh level steps:
+	================
+	==>create tablespace.
+	==>assign new tablespace as default tablespace to specific database.
+	==>move all tables from pg_default to new tablespace.
+
+
+	==>Online method is too slow method to moving tablespace to other filesystem and no need to stop/shutdown the cluster but objects will lock at the time of moving tables/indexes
+	
+ 	
+	create tablespace:
+	================
+	[root@postgres11 ~]# mkdir -p /u01/dvd_tbs
+    	[root@postgres11 ~]# chown -R postgres:postgres /u01/tbs
+    	postgres=# create tablespace dvd_tbs location '/u01/dvd_tbs';
+    	CREATE TABLESPACE
+	
+
+	Load the sample database:
+	==========================
+	==>Download the dvdrental database from below link:
+	
+	https://www.postgresqltutorial.com/wp-content/uploads/2019/05/dvdrental.zip
+	backup file have to place into the server: /u01/backup
+
+
+	==> To restore the tables from sample database like below
+
+	[postgres@postgres-elsy1112-1 bin]$ ./pg_restore -d dvdrental -U postgres -p 5432 /u01/backup/dvdrental.tar 
+
+	[postgres@postgres-elsy1112-1 ~]$ psql -d dvdrental
+	 psql (11.0)
+	 Type "help" for help.
+
+ 	dvdrental=#
+
+	 dvdrental=# \dt
+             List of relations
+	 Schema |     Name      | Type  |  Owner
+	--------+---------------+-------+----------
+ 	public | actor         | table | postgres
+	public | address       | table | postgres
+	public | category      | table | postgres
+ 	public | city          | table | postgres
+ 	public | country       | table | postgres
+ 	public | customer      | table | postgres
+ 	public | film          | table | postgres
+ 	public | film_actor    | table | postgres
+ 	public | film_category | table | postgres
+ 	public | inventory     | table | postgres
+ 	public | language      | table | postgres
+ 	public | payment       | table | postgres
+ 	public | rental        | table | postgres
+ 	public | staff         | table | postgres
+ 	public | store         | table | postgres
+	(15 rows)
+	
+	==> To check which tablespace is assigned for below tables
+	
+	hrms1=# select tablename,tablespace from pg_tables where tablename in ('actor','address','category','city','country','customer','film','film_actor','film_category','inventory','language','payment','rental','staff','store');
+ 	 tablename   | tablespace
+	---------------+------------
+	 actor         |
+	 store         |
+	 address       |
+ 	 category      |
+ 	 city          |
+ 	 country       |
+ 	 customer      |
+	 film_actor    |
+ 	 film_category |
+	 inventory     |
+	 language      |
+	 rental        |
+	 staff         |
+ 	 payment       |
+ 	 film          |
+	 (15 rows)
+
+	==> Indexes count:
+
+	hrms1=# select count(*) from pg_indexes where tablename in  ('actor','address','category','city','country','customer','film','film_actor','film_category','inventory','language','payment','rental','staff','store');
+	count
+	-------
+	32
+	(1 row)
+	==> Now we have to move these tables and indexes from pg_default to dvd_tbs:
+	============================================================================
+
+	1. Move tables 
+
+	hrms1=# select pg_relation_filepath('actor');
+	 pg_relation_filepath
+	----------------------
+	 base/40992/41029
+	(1 row)
+
+	hrms1=# show default_tablespace;
+	default_tablespace
+	--------------------
+
+	(1 row)
+	==> Assigning default_tablespace
+
+	hrms1=# alter database hrms1 set default_tablespace='dvd_tbs';
+	ALTER DATABASE
+
+	NOTE: The new tablespace reflected for new connections only
+      	So exit and reconnect the database.
+	  
+	hrms1=# \q
+	[postgres@postgres11 bin]$
+	[postgres@postgres11 bin]$
+	[postgres@postgres11 bin]$ psql -d hrms1
+	psql (8.4.20, server 11.0)
+	WARNING: psql version 8.4, server version 11.0.
+         Some psql features might not work.
+	Type "help" for help.
+
+	hrms1=# show default_tablespace;
+ 	default_tablespace
+	--------------------
+	 dvd_tbs
+	(1 row)
+
+
+
+	==> To move the objects from pg_default to dvd_tbs:
+
+	dvdrental=# alter table all in tablespace pg_default owned by postgres set tablespace dvd_tbs;
+	ALTER TABLE
+
+	hrms1=# select tablename,tablespace from pg_tables where tablename in('actor','address','category','city','country','customer','film','film_actor','film_category','inventory','language','payment','rental','staff','store');
+   	tablename   | tablespace
+	---------------+------------
+ 	actor         | dvd_tbs
+ 	film          | dvd_tbs
+ 	store         | dvd_tbs
+ 	address       | dvd_tbs
+ 	category      | dvd_tbs
+ 	city          | dvd_tbs
+ 	country       | dvd_tbs
+ 	customer      | dvd_tbs
+ 	film_actor    | dvd_tbs
+ 	film_category | dvd_tbs
+ 	inventory     | dvd_tbs
+ 	language      | dvd_tbs
+ 	rental        | dvd_tbs
+ 	staff         | dvd_tbs
+ 	payment       | dvd_tbs
+	(15 rows)
+
+
+	Note: Only tables are moved to new tablespace
+
+	==> We have to  move indexes also
+
+
+	hrms1=# select indexname,tablespace from pg_indexes;
+                      indexname                      | tablespace
+	-----------------------------------------------------+------------
+	actor_pkey                                          |
+ 	address_pkey                                        |
+ 	category_pkey                                       |
+	city_pkey                                           |
+ 	country_pkey                                        |
+ 	customer_pkey                                       |
+ 	film_actor_pkey        
+ 
+	==> Move all indexes from pg_default to dvd_tbs:
+	==================================================
+
+	Syntex:
+	=======
+
+	ALTER INDEX ALL IN TABLESPACE name [ OWNED BY role_name [, ... ] ]
+    	SET TABLESPACE new_tablespace [ NOWAIT ]
+	
+	hrms1=# alter index all in tablespace pg_default set tablespace dvd_tbs;
+	ALTER INDEX
+
+ 	==> Check tablespace changed or not for all indexes:
+ 
+ 	hrms1=# \di
+  
+                       OR 
+		
+ 	hrms1=# select indexname,tablespace from pg_indexes where tablespace='dvd_tbs';
+                      indexname                      | tablespace
+	-----------------------------------------------------+------------
+	actor_pkey                                          | dvd_tbs
+ 	address_pkey                                        | dvd_tbs
+ 	category_pkey                                       | dvd_tbs
+ 	city_pkey                                           | dvd_tbs
+ 	idx_fk_customer_id                                  | dvd_tbs
+ 	country_pkey                                        | dvd_tbs
+ 	customer_pkey                                       | dvd_tbs
+ 	film_actor_pkey                                     | dvd_tbs
+ 	film_category_pkey                                  | dvd_tbs
+ 	film_pkey                                           | dvd_tbs
+ 	inventory_pkey                                      | dvd_tbs
+ 	language_pkey                                       | dvd_tbs
+ 	payment_pkey                                        | dvd_tbs
+ 	rental_pkey                                         | dvd_tbs
+ 	staff_pkey                                          | dvd_tbs
+ 	store_pkey                                          | dvd_tbs
+ 	film_fulltext_idx                                   | dvd_tbs
+	idx_actor_last_name                                 | dvd_tbs
+ 	idx_fk_address_id                                   | dvd_tbs
+	idx_fk_city_id                                      | dvd_tbs
+ 	idx_fk_country_id                                   | dvd_tbs
+ 	idx_fk_film_id                                      | dvd_tbs
+ 	idx_fk_inventory_id                                 | dvd_tbs
+ 	idx_fk_language_id                                  | dvd_tbs
+ 	idx_fk_rental_id                                    | dvd_tbs
+ 	idx_fk_staff_id                                     | dvd_tbs
+ 	idx_fk_store_id                                     | dvd_tbs
+ 	idx_last_name                                       | dvd_tbs
+ 	idx_store_id_film_id                                | dvd_tbs
+ 	idx_title                                           | dvd_tbs
+ 	idx_unq_manager_staff_id                            | dvd_tbs
+ 	idx_unq_rental_rental_date_inventory_id_customer_id | dvd_tbs
+	(32 rows)
+
+
+	==> Move single table from pg_default to ohie_tbs:
+	====================================================
+
+	postgres=# create tablespace ohie_tbs location '/u01/ohie_tbs';
+	CREATE TABLESPACE
+
+	postgres=# create database lab;
+	CREATE DATABASE
+
+	lab=# create table emp(id int);
+	CREATE TABLE
+
+	lab=# select tablename,tablespace from pg_tables where tablename='emp';
+	tablename | tablespace
+	-----------+------------
+ 	emp       |
+	
+	lab=# alter table emp set tablespace ohie_tbs;
+	ALTER TABLE
+
+	lab=# select tablename,tablespace from pg_tables where tablename='emp';
+ 	tablename | tablespace
+	-----------+------------
+ 	emp       | ohie_tbs
+	(1 row)
+
+                  
+	==> Move single index from pg_default to ohie_tbs:
+	==================================================
+
+	restore sample database
+	===============================
+
+	[postgres@postgres11 bin]$ ./pg_restore -d lab -U postgres -p 5432 /u01/backup/dvdrental.tar
+
+	lab=# select indexname,tablespace from pg_indexes where indexname='actor_pkey';
+ 	indexname  | tablespace
+	-----------+------------
+ 	actor_pkey |
+	(1 row)
+
+	lab=# alter index actor_pkey set tablespace ohie_tbs;
+	ALTER INDEX
+
+	lab=#
+	lab=# select indexname,tablespace from pg_indexes where indexname='actor_pkey';
+ 	indexname  | tablespace
+	------------+------------
+	 actor_pkey | ohie_tbs
+	(1 row)
+
+	
+	

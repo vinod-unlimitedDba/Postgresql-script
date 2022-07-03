@@ -1,0 +1,151 @@
+
+ENABLE LOGGING IN POSTGRES:
+==========================
+==>By default its not enable in till postgres11 version.
+==>From postgres12 on wards the logging mechanisam is enabled but its logging minimal info into log files.
+
+
+ENABLE LOGGING:
+==============
+logging_collector = on						# It enables the logging mechanisam
+log_destination = 'stderr|csvlog' 				# it is extension of the log file i.e 'stderr,csvlog'
+log_line_prefix = '%t,%p,%d,%u,%a'				# recorded the info based on the values.
+log_directory = 'pg_log'|'/u01/log' 				# directory where log files are written, If you want use other location you can.
+log_rotation_age=1440      					#control when a new log file is created  #ex: it create a new log file for every 1440 minutes(1day).
+log_rotation_size=10000						#create a new log file when the previous one reache 10 000KB
+log_truncate_on_rotation=on  					#it will overwrite any log file that has the same name as a newly created log file.
+log_filename = 'postgresql-%a.log' 		 		# log file name pattern
+								#(every log file has the first 3 letters of the weekday in its name)
+'postgresql-%Y-%m-%d.log                        		# postgresql-2021-05-25.log
+log_duration='on|off'						#Recorded the duration of every completed statement.
+						
+log_file_mode = 0600               				#creation mode for log files,
+log_timezone = 'Australia/Sydney'
+log_connections = on|off					#Recorded for every connection Info
+log_disconnections = on|off					#Recorded for every disconnection Info
+		
+log_statement = 'off' | 'ddl' | 'mod' | 'all' 			#Decides what type of statements will be recorded
+
+log_min_messages = warning             				#Recorded any stamement that gives 'Warning' messages.
+                                       
+log_min_error_statement = error        				#Recorded any stamement that gives 'error' messages.
+                                      
+log_min_duration_statement = 10000      	 		# It recorded any statement which is running more than 10 seconds.(10000ms)
+
+log_hostname = on						#Recorded the host details where the conections are comming.
+
+
+
+
+Change the below parameters on postgresql.conf file
+===================================================
+logging_collector = on					   
+log_destination = 'stderr' 				
+log_line_prefix = '%t,%p,%d,%u,%a'				
+log_directory = 'pg_log'|'/u01/logs/pg_log'   						
+log_rotation_age=1440      						
+log_rotation_size=0MB				
+log_truncate_on_rotation=on  					
+log_filename = 'postgresql-%Y-%m-%d.log' 		 														                
+log_duration= on												
+log_file_mode = 0600               				,
+log_timezone = 'Asia/Kolkata'
+log_connections = on						
+log_disconnections = on						
+log_statement = 'all' 	
+log_min_messages = warning             			                                     
+log_min_error_statement = error        			                                     
+log_min_duration_statement = 10000      	 	
+log_hostname = on								
+
+Restart the cluster
+======================
+
+/usr/local/pgsql/bin/pg_ctl -D /u01/data restart
+
+Checking the above parameters reflecting or not
+===============================================
+
+postgres=# select name,setting from pg_settings where name in ('log_destination','log_connections','log_directory','log_disconnections','log_duration','log_file_mode','log_filename','log_hostname','log_rotation_age','log_line_prefix','log_rotation_age','log_rotation_size','log_statement','log_timezone','log_truncate_on_rotation ','logging_collector','log_min_messages','log_min_error_statement','log_min_duration_statement','log_truncate_on_rotation=on');
+            name            |         setting
+----------------------------+-------------------------
+ log_connections            | on
+ log_destination            | stderr
+ log_directory              | pg_log
+ log_disconnections         | on
+ log_duration               | on
+ log_file_mode              | 0600
+ log_filename               | postgresql-%Y-%m-%d.log
+ log_hostname               | on
+ log_line_prefix            | %m,%a,%u,%d,%r,%p
+ log_min_duration_statement | -1
+ log_min_error_statement    | error
+ log_min_messages           | warning
+ log_rotation_age           | 1440
+ log_rotation_size          | 0
+ log_statement              | all
+ log_timezone               | Asia/Kolkata
+ logging_collector          | on
+(17 rows)
+
+
+
+logging into database and ran soome stmt:
+==========================================
+[root@emptymachine_1 ~]# su - postgres
+-bash-4.1$ cd /usr/local/pgsql/bin/
+-bash-4.1$ ./psql
+psql (11.0)
+Type "help" for help.
+
+postgres=# select name,setting from pg_settings where name in ('log_destination','log_connections','log_directory','log_disconnections','log_duration','log_file_mode','log_filename','log_hostname','log_rotation_age','log_line_prefix','log_rotation_age','log_rotation_size','log_statement','log_timezone','log_truncate_on_rotation ','logging_collector','log_min_messages','log_min_error_statement','log_min_duration_statement','log_truncate_on_rotation=on','log_checkpoints','log_temp_files','log_error_verbosity');
+            name            |         setting
+----------------------------+-------------------------
+ log_checkpoints            | on
+ log_connections            | on
+ log_destination            | stderr
+ log_directory              | log
+ log_disconnections         | on
+ log_duration               | on
+ log_error_verbosity        | default
+ log_file_mode              | 0600
+ log_filename               | postgresql-%Y-%m-%d.log
+ log_hostname               | on
+ log_line_prefix            | %m,%p,%u,%d,%a,%h
+ log_min_duration_statement | 0
+ log_min_error_statement    | error
+ log_min_messages           | warning
+ log_rotation_age           | 1440
+ log_rotation_size          | 0
+ log_statement              | all
+ log_temp_files             | -1
+ log_timezone               | Asia/Kolkata
+ logging_collector          | on
+(20 rows)
+
+postgres=#
+postgres=#
+postgres=#
+postgres=#
+postgres=#
+postgres=# \q
+-bash-4.1$
+
+check log file weather the abv info is there or not?
+===============================================
+-bash-4.1$ cd /data/as11/data
+-bash-4.1$ cd log/
+-bash-4.1$ ll
+total 4
+-rw-------. 1 postgres postgres 1428 Jul 24 11:12 postgresql-2021-07-24.log
+-bash-4.1$ cat postgresql-2021-07-24.log
+2021-07-24 11:07:56.527 IST,6142,,,, LOG:  database system was shut down at 2021-07-24 11:07:56 IST
+2021-07-24 11:07:56.594 IST,6140,,,, LOG:  database system is ready to accept connections
+2021-07-24 11:10:03.571 IST,6238,[unknown],[unknown],[unknown],[local] LOG:  connection received: host=[local]
+2021-07-24 11:10:03.574 IST,6238,postgres,postgres,[unknown],[local] LOG:  connection authorized: user=postgres database=postgres
+2021-07-24 11:10:23.578 IST,6238,postgres,postgres,psql,[local] LOG:  statement: select name,setting from pg_settings where name in ('log_destination','log_connections','log_directory','log_disconnections','log_duration','log_file_mode','log_filename','log_hostname','log_rotation_age','log_line_prefix','log_rotation_age','log_rotation_size','log_statement','log_timezone','log_truncate_on_rotation ','logging_collector','log_min_messages','log_min_error_statement','log_min_duration_statement','log_truncate_on_rotation=on','log_checkpoints','log_temp_files','log_error_verbosity');
+2021-07-24 11:10:23.588 IST,6238,postgres,postgres,psql,[local] LOG:  duration: 10.787 ms
+2021-07-24 11:12:56.630 IST,6143,,,, LOG:  checkpoint starting: time
+2021-07-24 11:12:56.932 IST,6143,,,, LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.000 s, total=0.301 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=0 kB
+-bash-4.1$
+

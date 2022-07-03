@@ -1,0 +1,87 @@
+Step-2:	Enable Archive mode
+===========================
+
+==>	Creating Directory for storing Archive files
+
+[root@postgres11_master ~]# mkdir -p /archive/location
+[root@postgres11_master ~]# chown -R postgres:oinstall /archive/location
+
+==>	Enable the below parameters in postgresql.conf file & Restart the services
+vi postgressql.conf
+
+archive_mode = on                             # enables archiving log
+                                                                                          
+archive_command = 'cp %p /archive/location/%f'    # copy wal file to /u02/archives/ location with same name(%f).(%p = path of file to archive %f = file name only)
+    
+%p==>indicates location of /u01/data directoty
+
+archive_timeout = 5min          		 #Force every 5 min, force a wal switch (irresespective of 16MB)
+
+==>	Restart the cluster services
+
+/usr/local/pgsql/bin/pg_ctl -D /u01/data restart
+
+==>	Verify the parameters
+ 
+postgres=# select name,setting from pg_settings where name in('archive_mode','archive_command','archive_timeout');
+      name       |          setting
+-----------------+----------------------------
+ archive_command | cp %p /archive/location/%f
+ archive_mode    | on
+ archive_timeout | 300
+ 
+Step-3:Verifying Archive files copying or not
+==============================================
+
+[postgres@postgres11_master data]$ psql
+psql (11.0)
+Type "help" for help.
+
+postgres=# select pg_switch_wal();
+ pg_switch_wal
+---------------
+ 0/9B233D8
+(1 row)
+
+postgres=# checkpoint;
+CHECKPOINT
+postgres=# select pg_switch_wal();
+ pg_switch_wal
+---------------
+ 0/A000120
+(1 row)
+
+postgres=# checkpoint;
+CHECKPOINT
+postgres=# \q
+[postgres@postgres11_master ~]$ cd /archive/location
+[postgres@postgres11_master location]$ ls -lrt
+total 32768
+-rw-------. 1 postgres oinstall 16777216 May 23 18:42 000000010000000000000009
+-rw-------. 1 postgres oinstall 16777216 May 23 18:43 00000001000000000000000A
+
+==> To find the current_walfile_name and lsn()
+
+postgres=# select pg_switch_wal();
+ pg_switch_wal
+---------------
+ 0/C000158
+(1 row)
+
+postgres=# select pg_current_wal_lsn();
+ pg_current_wal_lsn
+--------------------
+ 0/D000060
+(1 row)
+
+postgres=# select pg_walfile_name('0/C000158');
+     pg_walfile_name
+--------------------------
+ 00000001000000000000000C
+(1 row)
+
+postgres=# select pg_walfile_name('0/D000060');
+     pg_walfile_name
+--------------------------
+ 00000001000000000000000D
+(1 row)

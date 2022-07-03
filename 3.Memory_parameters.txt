@@ -1,0 +1,64 @@
+MEMORY PARAMETERS IN POSTGRESQL
+================================
+
+
+shared memory:
+
+1.shared buffers.==>to store caxche data/to store frequently objects data
+2.wal buffers.  :it will store changes temprorarly
+3.temp buffers. it will store temp tables.
+4.clog buffers: commit log inf
+
+
+
+
+lOCAL MEMORY:
+	work_mem'
+2.Maintenance_work_mem (integer)
+
+
+1
+This article looks at parameters that can be used to help manage memory in PostgreSQL. Recommended settings for each parameter are also provided.
+
+1. Shared_buffers (integer)
+
+2. Work_mem (integer)
+
+3. Maintenance_work_mem (integer)
+
+4. Temp_buffers (integer)
+
+In this post, we are going to look at some of the important GUC parameters recommended for memory management in PostgreSQL, which is helpful for improving the performance of your database server. All of these parameters reside under the postgresql.conf file, which manages the configurations of the database server. 
+
+
+1. Shared_buffers:
+==================
+
+==> Used for cache the table data which is accessed frequently.
+==> PostgreSQL loads pages with in tables and indexes from a persistent storage to here ,and operates them directly.
+==> Best to set this parameter to about 25% of system memory on UNIX and LINUX systems.
+
+2. Work memeory(work_mem):
+==========================
+
+==> Allocated to individual session.
+==> The executor uses this area for sorting tuples by ORDER BY and DISTINCT operations.It also uses it for joining tables by MERGE-JOIN and HASH-JOIN operations.
+==> Set based on memory available in system divided by max connections.
+
+3. Maintenance_work_mem:
+========================
+
+==>	Used by session for maintenance operations vaccum,analyze and reindex.
+==> 	The maintenance_work_mem parameter basically provides the maximum amount of memory to be used by maintenance operations like vacuum, create index, and alter table add foreign key operations. 
+
+==>	The default value for this parameter, which is set in postgresql.conf, is:
+
+#maintenance_work_mem = 64MB
+
+4. Temp_buffers:
+===============
+
+==> Executor uses this area for storing Temporary tables.
+
+
+ 

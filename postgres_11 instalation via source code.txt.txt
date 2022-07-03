@@ -1,0 +1,136 @@
+to check weather the port is free or not?
+
+[postgres@machine10 bin]$ netstat -a|grep 5432
+unix  2      [ ACC ]     STREAM     LISTENING     35392  /tmp/.s.PGSQL.5432
+unix  2      [ ACC ]     STREAM     LISTENING     35391  /var/run/postgresql/.s.PGSQL.5432
+[postgres@machine10 bin]$
+
+
+Postgres11 instalation via source method:
+=========================================
+	==>	step-1: Download the software from below link and place into the server
+
+		https://www.postgresql.org/ftp/source/v11.0/
+
+		postgresql-11.0.tar.gz
+
+	==>	Step-2:The above software copy to the  /u01
+
+		[root@machine2 ~]# cp postgresql-11.0.tar.gz /u01
+		[root@machine2 ~]# cd /u01
+		[root@machine2 u01]# ls -lrt
+		total 27356
+		drwx------. 2 root root    16384 May 11 13:39 lost+found
+		-rw-r--r--. 1 root root 27992346 May 11 15:36 postgresql-11.0.tar.gz
+
+	==>	Step3:un-tar the s/w
+	
+		[root@machine2 u01]# tar -xvf postgresql-11.0.tar.gz
+
+		[root@machine2 u01]# ls -lrt
+		total 27360
+		drwxrwxrwx. 6 1107 1107     4096 Oct 16  2018 postgresql-11.0
+		drwx------. 2 root root    16384 May 11 13:39 lost+found
+		-rw-r--r--. 1 root root 27992346 May 11 15:36 postgresql-11.0.tar.gz
+
+	==>	Step-4:Create Data Directory and change the ownership for storing thedatafiles and conf files i.e  /u01/data
+
+		[root@machine2 ~]# mkdir /u01/data
+		[root@machine2 ~]# chown -R postgres:oinstall /u01/data
+		[root@machine2 ~]# chmod -R 775 /u01/data
+
+	==>	Step-5:Create groups and user
+
+		[root@machine2 ~]# groupadd postgres
+		[root@machine2 ~]# useradd -g postgres -G postgres postgres
+
+	==>	To set password from user postgres
+
+		[root@machine2 ~]# passwd postgres
+		Changing password for user postgres.
+		New password:
+		BAD PASSWORD: it is based on a dictionary word
+		Retype new password:
+		passwd: all authentication tokens updated successfully.
+
+
+	==>	step-6:To start the instalation process in postgresql-11.0
+		go t o s/w location
+		#cd 
+
+		[root@machine2 ]# cd postgresql-11.0
+		[root@machine2 postgresql-11.0]# ./configure
+
+		[root@machine2 postgresql-11.0]# make
+
+		[root@machine2 postgresql-11.0]# make install
+
+		PostgreSQL installation complete.
+
+/var/lib/pqsql/11/bin/pg utility
+
+	==>	Step-9:Creating cluster:
+		You can create the cluster by using "initdb" utility
+
+		[root@machine2 postgresql-11.0]# su - postgres
+		-bash-4.1$ /usr/local/pgsql/bin/initdb -D /u01/data
+		The files belonging to this database system will be owned by user "postgres".
+		This user must also own the server process.
+
+		The database cluster will be initialized with locale "en_US.UTF-8".
+		The default database encoding has accordingly been set to "UTF8".
+		The default text search configuration will be set to "english".
+
+		Data page checksums are disabled.
+
+		fixing permissions on existing directory /u01/data ... ok
+		creating subdirectories ... ok
+		selecting default max_connections ... 100
+		selecting default shared_buffers ... 128MB
+		selecting dynamic shared memory implementation ... posix
+		creating configuration files ... ok
+		running bootstrap script ... ok
+		performing post-bootstrap initialization ... ok
+		syncing data to disk ... ok
+
+		WARNING: enabling "trust" authentication for local connections
+		You can change this by editing pg_hba.conf or using the option -A, or
+		--auth-local and --auth-host, the next time you run initdb.
+
+		Success. You can now start the database server using:
+
+	==>	step-10:Starting the cluster:
+ 
+			To start the cluster by using "pg_ctl" utility
+			-bash-4.1$ /usr/local/pgsql/bin/pg_ctl -D /u01/data start
+			waiting for server to start....2021-05-11 15:56:02.674 IST [22544] LOG:  listening on IPv6 address "::1", port 5432
+			2021-05-11 15:56:02.674 IST [22544] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+			2021-05-11 15:56:02.678 IST [22544] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+			2021-05-11 15:56:02.687 IST [22545] LOG:  database system was shut down at 2021-05-11 15:54:49 IST
+			2021-05-11 15:56:02.690 IST [22544] LOG:  database system is ready to accept connections
+ 			done
+			server started
+
+
+	==>	Step-11:Connecting to cluster:
+		To connecting the cluster by using "psql" utility
+
+		-bash-4.1$ psql
+		psql (8.4.20, server 11.0)
+		WARNING: psql version 8.4, server version 11.0.
+        	 Some psql features might not work.
+		Type "help" for help.
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(3 rows)
+
+
+

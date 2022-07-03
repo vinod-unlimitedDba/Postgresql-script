@@ -1,0 +1,116 @@
+WAL FILES:==>REDO LOG FILE IN ORACLE
+=========
+	==>	Any transaction performed on the database is first written out as a WAL file, then applied to the actual on-disk table data files.
+		WAL files are strictly sequential. This makes the WAL file sequence a “replay log” of changes.
+
+	==>	The WAL Files are stored under PGDATA/pg_xlog, where $PGDATA is the data directory, like /var/lib/postgresql/9.6/main. 
+		They are binary files, 16MB each.
+(till 9 version)pg_xlog==>pg_wal(from 10 version)
+	==>	You can limit these files by number (wal_keep_segments) and/or total size (max_wal_size).
+	==>	In PostgreSQL, it is also known as a transaction log. A log is a record of all the events or changes and WAL data is just a
+		description of changes made to the actual data.
+
+	==>	Using the Postgres WAL entries, you can restore the database back to its state at any previous point in time.
+	==>	This architecture facilitates popular features of Postgres like Point-In-Time-Recovery (PITR) and streaming replication (and therefore read replicas, hot standby, failover and high availability).
+
+WAL FILE FORMATS:
+================
+
+Find current WAL LSN:
+====================
+postgres=# select pg_current_wal_lsn();
+ pg_current_wal_lsn
+--------------------
+ 0/2000060
+(1 row)
+
+postgres=# select pg_walfile_name('0/2000060');
+     pg_walfile_name
+--------------------------
+ 000000010000000000000002
+(1 row)
+
+postgres=# select pg_switch_wal();
+ pg_switch_wal
+---------------
+ 0/2000078
+(1 row)
+
+
+To generate many wal files:
+============================
+postgres#create table emp1 as select * from pg_class,pg_description;
+postgres#create table emp2 as select * from pg_class,pg_description;
+postgres#create table emp3 as select * from pg_class,pg_description;
+postgres#create table emp4 as select * from pg_class,pg_description;
+
+go and see the wal files under ==>PGDATA/pg_wal
+
+-rw-------. 1 postgres oinstall 16777216 May 25 11:03 000000010000000000000001
+-rw-------. 1 postgres oinstall 16777216 May 25 11:03 000000010000000000000002
+-rw-------. 1 postgres oinstall 16777216 May 25 11:08 000000010000000000000003
+-rw-------. 1 postgres oinstall 16777216 May 25 12:12 000000010000000000000004
+-rw-------. 1 postgres oinstall 16777216 May 25 12:12 000000010000000000000005
+-rw-------. 1 postgres oinstall      337 May 25 12:12 000000010000000000000005.00000028.backup
+-rw-------. 1 postgres oinstall 16777216 May 25 12:17 000000010000000000000006
+-rw-------. 1 postgres oinstall 16777216 May 25 12:22 000000010000000000000007
+-rw-------. 1 postgres oinstall 16777216 May 25 12:22 000000010000000000000008
+-rw-------. 1 postgres oinstall 16777216 May 25 12:32 000000010000000000000009
+-rw-------. 1 postgres oinstall 16777216 May 25 12:37 00000001000000000000000A
+-rw-------. 1 postgres oinstall 16777216 May 25 12:42 00000001000000000000000B
+-rw-------. 1 postgres oinstall 16777216 May 25 12:47 00000001000000000000000C
+-rw-------. 1 postgres oinstall 16777216 May 25 16:40 00000001000000000000000D
+-rw-------. 1 postgres oinstall 16777216 May 25 16:41 00000001000000000000000E
+-rw-------. 1 postgres oinstall 16777216 May 25 16:46 00000001000000000000000F
+-rw-------. 1 postgres oinstall 16777216 May 25 17:01 000000010000000000000010
+-rw-------. 1 postgres oinstall 16777216 May 25 17:06 000000010000000000000011
+-rw-------. 1 postgres oinstall 16777216 May 25 17:21 000000010000000000000012
+-rw-------. 1 postgres oinstall 16777216 May 25 17:26 000000010000000000000013
+-rw-------. 1 postgres oinstall 16777216 May 25 17:45 000000010000000000000014
+-rw-------. 1 postgres oinstall 16777216 May 25 17:50 000000010000000000000015
+-rw-------. 1 postgres oinstall 16777216 May 25 17:55 000000010000000000000016
+-rw-------. 1 postgres oinstall 16777216 May 25 17:55 000000010000000000000017
+-rw-------. 1 postgres oinstall 16777216 May 25 17:56 000000010000000000000018
+-rw-------. 1 postgres oinstall 16777216 May 25 18:01 000000010000000000000019
+-rw-------. 1 postgres oinstall 16777216 May 25 18:11 00000001000000000000001A
+-rw-------. 1 postgres oinstall 16777216 May 25 18:16 00000001000000000000001B
+-rw-------. 1 postgres oinstall 16777216 May 25 18:16 00000001000000000000001C
+-rw-------. 1 postgres oinstall 16777216 May 25 18:19 00000001000000000000001D
+-rw-------. 1 postgres oinstall 16777216 May 25 18:19 00000001000000000000001E
+-rw-------. 1 postgres oinstall 16777216 May 25 18:20 00000001000000000000001F
+-rw-------. 1 postgres oinstall 16777216 May 25 18:20 000000010000000000000020
+-rw-------. 1 postgres oinstall 16777216 May 25 18:20 000000010000000000000021
+-rw-------. 1 postgres oinstall 16777216 May 25 18:20 000000010000000000000022
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 000000010000000000000023
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 000000010000000000000024
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 000000010000000000000025
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 000000010000000000000026
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 000000010000000000000027
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 000000010000000000000028
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 000000010000000000000029
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 00000001000000000000002A
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 00000001000000000000002B
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 00000001000000000000002C
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 00000001000000000000002D
+-rw-------. 1 postgres oinstall 16777216 May 25 18:21 00000001000000000000002E
+-rw-------. 1 postgres oinstall 16777216 May 25 18:22 00000001000000000000002F
+-rw-------. 1 postgres oinstall 16777216 May 25 18:22 000000010000000000000030
+-rw-------. 1 postgres oinstall 16777216 May 25 18:22 000000010000000000000031
+-rw-------. 1 postgres oinstall 16777216 May 25 18:22 000000010000000000000032
+-rw-------. 1 postgres oinstall 16777216 May 25 18:22 000000010000000000000033
+-rw-------. 1 postgres oinstall 16777216 May 25 18:22 000000010000000000000034
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 000000010000000000000035
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 000000010000000000000036
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 000000010000000000000037
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 000000010000000000000038
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 000000010000000000000039
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 00000001000000000000003A
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 00000001000000000000003B
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 00000001000000000000003C
+-rw-------. 1 postgres oinstall 16777216 May 25 18:23 00000001000000000000003D
+
+
+postgres==# select pg_current_wal_lsn(),pg_walfile_name(pg_current_wal_lsn());
+
+
+

@@ -1,0 +1,212 @@
+Point in Time Recovery:
+======================
+
+High level stepS:
+================
+1.Enable Archive mode
+2.create some user defined tables.
+3.take pg_basebackup
+4.After complete the backup You can creatae another two tables and take timestamp also
+5.Drop the emp3 table and take timestamp also.
+7.Stop the cluster and Go the backup location and untar the backup file
+8.To create recovery.conf file in new data_Directory(/u01/data_1)
+9.To start the new cluster (/u01/data_1)
+Enable archive mode:
+====================
+
+==> 1.Create data directory for storing archive files.
+
+	[root@postgres11_s ~]# mkdir -p /u01/archive
+	[root@postgres11_s ~]# chown -R postgres:postgres /u01/archive
+	[root@postgres11_s ~]# chmod -R 775 /u01/archive
+
+==> 2.change below parameters in postgresql.conf files
+
+	archive_mode = on 
+	archive_command = 'cp %p /u01/archive/%f'
+	archive_timeout = 0
+	max_wal_senders = 2
+	wal_level = replica
+
+	==> 2.Restart the cluster
+
+	[postgres@postgres11_s data]$ /usr/local/pgsql/bin/pg_ctl -D /u01/data restart
+
+==> 4.create some user defined tables
+
+
+	[postgres@postgres11_p data]$ psql
+	psql (8.4.20, server 11.0)
+	WARNING: psql version 8.4, server version 11.0.
+         Some psql features might not work.
+	Type "help" for help.
+
+	postgres=#
+	postgres=# create table emp1 as select * from pg_class,pg_description;
+	SELECT 1365264
+	postgres=# create table emp2 as select * from pg_class,pg_description;
+	SELECT 1377240
+
+	postgres=# select * from current_timestamp;
+        	current_timestamp
+	----------------------------------
+ 	2021-07-09 20:55:21.974495+05:30
+	(1 row)
+
+==> 5.Take the pg_basebackup and stored backup in /u01/data_1 
+
+	[postgres@postgres11_p bin]$ ./pg_basebackup -p 5432 -X stream -Ft -D /u01/data_1
+
+==> 6.After complete the backup You can creatae another two tables and take timestamp also
+
+	postgres=# create table emp3 as select * from pg_class,pg_description;
+	SELECT 1389216
+	postgres=# create table emp4 as select * from pg_class,pg_description;
+	SELECT 1401192
+
+	postgres=# select * from current_timestamp;
+        	current_timestamp
+	----------------------------------
+ 	2021-07-09 21:03:38.902177+05:30
+	(1 row)
+
+==> 7.Drop the emp3 table and take timestamp also take time stamp
+
+	postgres=# drop table emp3;
+	DROP TABLE
+	postgres=# select * from current_timestamp;
+        	current_timestamp
+	---------------------------------
+ 	2021-07-09 21:05:47.47801+05:30
+	(1 row)
+
+	postgres=# \dt
+        	List of relations
+	 Schema | Name | Type  |  Owner
+	--------+------+-------+----------
+ 	public | emp1 | table | postgres
+ 	public | emp2 | table | postgres
+ 	public | emp4 | table | postgres
+	(3 rows)
+
+
+==> 8.Stop the cluster and Go the backup location and untar the backup file
+
+	[postgres@postgres11_p bin]$ /usr/local/pgsql/bin/pg_ctl -D /u01/data stop
+	2021-07-09 21:08:36.727 IST [4022] LOG:  received fast shutdown request
+	waiting for server to shut down....2021-07-09 21:08:36.746 IST [4022] LOG:  aborting any active transactions
+	2021-07-09 21:08:36.747 IST [4022] LOG:  background worker "logical replication launcher" (PID 4030) exited with exit code 1
+	2021-07-09 21:08:36.748 IST [4024] LOG:  shutting down
+	2021-07-09 21:08:36.894 IST [4022] LOG:  database system is shut down
+ 	done
+	server stopped
+
+	[postgres@postgres11_p bin]$ cd /u01/data_1
+	[postgres@postgres11_p data_1]$ ls -lrt
+	total 718744
+	-rw-------. 1 postgres postgres 702430720 Jul  9 21:00 base.tar
+	-rw-------. 1 postgres postgres  33556992 Jul  9 21:00 pg_wal.tar
+	[postgres@postgres11_p data_1]$ tar -xvf base.tar
+
+==> 9.To create recovery.conf file in new data_Directory(/u01/data_1)
+
+	restore_command='cp /u01/archive/%f %p'
+	recovery_target_time='2021-07-09 21:03:38'						#restore_command = 'cp /mnt/server/archivedir/%f %p'
+
+
+==> 10.To start the new cluster (/u01/data_1)
+
+	[postgres@postgres11_p data_1]$ /usr/local/pgsql/bin/pg_ctl -D /u01/data_1 start
+	waiting for server to start....2021-07-09 21:17:37.657 IST [4195] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+	2021-07-09 21:17:37.657 IST [4195] LOG:  listening on IPv6 address "::", port 5432
+	2021-07-09 21:17:37.661 IST [4195] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+	2021-07-09 21:17:37.675 IST [4196] LOG:  database system was interrupted; last known up at 2021-07-09 21:00:37 IST
+	2021-07-09 21:17:38.009 IST [4196] LOG:  starting point-in-time recovery to 2021-07-09 21:03:38+05:30
+	2021-07-09 21:17:38.033 IST [4196] LOG:  restored log file "00000001000000000000002E" from archive
+	2021-07-09 21:17:38.069 IST [4196] LOG:  redo starts at 0/2E000028
+	2021-07-09 21:17:38.070 IST [4196] LOG:  consistent recovery state reached at 0/2E000130
+	2021-07-09 21:17:38.071 IST [4195] LOG:  database system is ready to accept read only connections
+	2021-07-09 21:17:38.125 IST [4196] LOG:  restored log file "00000001000000000000002F" from archive
+	 done
+	server started
+
+	[postgres@postgres11_p data_1]$ 2021-07-09 21:17:38.357 IST [4196] LOG:  restored log file "000000010000000000000030" from archive
+	2021-07-09 21:17:38.605 IST [4196] LOG:  restored log file "000000010000000000000031" from archive
+	2021-07-09 21:17:38.846 IST [4196] LOG:  restored log file "000000010000000000000032" from archive
+	2021-07-09 21:17:39.078 IST [4196] LOG:  restored log file "000000010000000000000033" from archive
+	2021-07-09 21:17:39.326 IST [4196] LOG:  restored log file "000000010000000000000034" from archive
+	2021-07-09 21:17:39.566 IST [4196] LOG:  restored log file "000000010000000000000035" from archive
+	2021-07-09 21:17:39.823 IST [4196] LOG:  restored log file "000000010000000000000036" from archive
+	2021-07-09 21:17:40.059 IST [4196] LOG:  restored log file "000000010000000000000037" from archive
+	2021-07-09 21:17:40.321 IST [4196] LOG:  restored log file "000000010000000000000038" from archive
+	2021-07-09 21:17:40.575 IST [4196] LOG:  restored log file "000000010000000000000039" from archive
+	2021-07-09 21:17:40.841 IST [4196] LOG:  restored log file "00000001000000000000003A" from archive
+	2021-07-09 21:17:41.101 IST [4196] LOG:  restored log file "00000001000000000000003B" from archive
+	2021-07-09 21:17:41.348 IST [4196] LOG:  restored log file "00000001000000000000003C" from archive
+	2021-07-09 21:17:41.602 IST [4196] LOG:  restored log file "00000001000000000000003D" from archive
+	2021-07-09 21:17:41.862 IST [4196] LOG:  restored log file "00000001000000000000003E" from archive
+	2021-07-09 21:17:42.145 IST [4196] LOG:  restored log file "00000001000000000000003F" from archive
+	2021-07-09 21:17:42.401 IST [4196] LOG:  restored log file "000000010000000000000040" from archive
+	2021-07-09 21:17:43.136 IST [4196] LOG:  restored log file "000000010000000000000041" from archive
+	2021-07-09 21:17:43.383 IST [4196] LOG:  restored log file "000000010000000000000042" from archive
+	2021-07-09 21:17:43.687 IST [4196] LOG:  restored log file "000000010000000000000043" from archive
+	2021-07-09 21:17:44.013 IST [4196] LOG:  restored log file "000000010000000000000044" from archive
+	2021-07-09 21:17:44.310 IST [4196] LOG:  restored log file "000000010000000000000045" from archive
+	2021-07-09 21:17:45.795 IST [4196] LOG:  restored log file "000000010000000000000046" from archive
+	2021-07-09 21:17:46.234 IST [4196] LOG:  restored log file "000000010000000000000047" from archive
+	2021-07-09 21:17:46.554 IST [4196] LOG:  restored log file "000000010000000000000048" from archive
+	2021-07-09 21:17:46.846 IST [4196] LOG:  restored log file "000000010000000000000049" from archive
+	2021-07-09 21:17:47.145 IST [4196] LOG:  restored log file "00000001000000000000004A" from archive
+	2021-07-09 21:17:47.516 IST [4196] LOG:  restored log file "00000001000000000000004B" from archive
+	2021-07-09 21:17:47.866 IST [4196] LOG:  restored log file "00000001000000000000004C" from archive
+	2021-07-09 21:17:48.138 IST [4196] LOG:  restored log file "00000001000000000000004D" from archive
+	2021-07-09 21:17:48.591 IST [4196] LOG:  restored log file "00000001000000000000004E" from archive
+	2021-07-09 21:17:49.007 IST [4196] LOG:  restored log file "00000001000000000000004F" from archive
+	2021-07-09 21:17:50.141 IST [4196] LOG:  restored log file "000000010000000000000050" from archive
+	2021-07-09 21:17:50.427 IST [4196] LOG:  restored log file "000000010000000000000051" from archive
+	2021-07-09 21:17:50.723 IST [4196] LOG:  restored log file "000000010000000000000052" from archive
+	2021-07-09 21:17:51.027 IST [4196] LOG:  restored log file "000000010000000000000053" from archive
+	2021-07-09 21:17:51.353 IST [4196] LOG:  restored log file "000000010000000000000054" from archive
+	2021-07-09 21:17:51.629 IST [4196] LOG:  restored log file "000000010000000000000055" from archive
+	2021-07-09 21:17:51.981 IST [4196] LOG:  restored log file "000000010000000000000056" from archive
+	2021-07-09 21:17:53.652 IST [4196] LOG:  restored log file "000000010000000000000057" from archive
+	2021-07-09 21:17:54.112 IST [4196] LOG:  restored log file "000000010000000000000058" from archive
+	2021-07-09 21:17:54.455 IST [4196] LOG:  restored log file "000000010000000000000059" from archive
+	2021-07-09 21:17:54.791 IST [4196] LOG:  restored log file "00000001000000000000005A" from archive
+	2021-07-09 21:17:55.082 IST [4196] LOG:  restored log file "00000001000000000000005B" from archive
+	2021-07-09 21:17:55.600 IST [4196] LOG:  restored log file "00000001000000000000005C" from archive
+	done
+	server started
+
+	[postgres@postgres11_p data_1]$ psql (8.4.20, server 11.0)
+	WARNING: psql version 8.4, server version 11.0.
+         Some psql features might not work.
+	Type "help" for help.
+
+	postgres=# show data_directory;
+ 	data_directory
+	----------------
+ 	/u01/data_1
+	(1 row)
+
+	postgres=# \dt
+        List of relations
+	 Schema | Name | Type  |  Owner
+	--------+------+-------+----------
+ 	public | emp1 | table | postgres
+ 	public | emp2 | table | postgres
+ 	public | emp3 | table | postgres
+ 	public | emp4 | table | postgres
+	(4 rows)
+
+
+	
+
+
+
+
+
+
+
+
+

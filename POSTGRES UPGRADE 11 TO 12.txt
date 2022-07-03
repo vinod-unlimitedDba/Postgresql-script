@@ -1,0 +1,539 @@
+POSTGRES UPGRADE 11 TO 12 VERSION:
+===================================
+
+11 ==>12   ==>major upgrade activity?
+13.0==>13.3.5==>Minor upgrade===>patchin activity
+
+
+how many ways can upgrade postgres database:
+========================================
+1.pg_upgrade
+2.export/import
+
+Pre Steps:
+==========
+1.Install postgres_11==>/usr/local/pgsql/  (PG_HOME)==>/u01/data_11 (DATA)==>./configure
+2.Install postgres_12 ==>/usr/local/pgsql_12/ (PG_HOME)==>/u01/data_12/ (DATA)
+										./configure --prefix=/usr/local/pgsql_12/
+3.Check the objeck count 11 cluster
+4.Stop the two clusters & do the consistence check
+5.Do the upgrade 
+6.Start the 12 cluster 
+7. Verify the object count
+8.pg_upgrade given below scripts.
+Upgrade Complete
+----------------
+Optimizer statistics are not transferred by pg_upgrade so,
+once you start the new server, consider running:
+    ./analyze_new_cluster.sh
+
+Running this script will delete the old cluster's data files:
+    ./delete_old_cluster.sh
+
+
+
+
+Install postgres_11:
+===================
+Bin_directory: /usr/local/pgsql/bin
+data_directory: /u01/data_11
+ 
+Install postgres_12:
+===================
+
+Bin_directory: /usr/local/pgsql_12/bin
+data_directory: /u01/data_12
+
+3.Check the objeck count:
+4.Stop the two clusters & do the consistence check:
+=================================================
+
+/usr/local/pgsql_12/bin/pg_upgrade --old-bindir=/usr/local/pgsql/bin/ --new-bindir=/usr/local/pgsql_12/bin/ --old-datadir=/u01/data_11/ --new-datadir=/u01/data_12/ --check
+1.Install postgres11 version on the same machie with diff directory.
+
+[root@practice20 u01]# mkdir -p /usr/local/pgsql_12
+[root@practice20 u01]# chown -R postgres:postgres /usr/local/pgsql_12
+[root@practice20 u01]# chmod -R 775 /usr/local/pgsql_12
+[root@practice20 u01]#
+
+
+[root@practice20 u01]# mkdir -p /u01/data_12
+[root@practice20 u01]# chown -R postgres:postgres /u01/data_12
+[root@practice20 u01]# chmod -R 775 /u01/data_12
+[root@practice20 u01]#
+
+
+unzip the softare and nstall.
+===========================
+
+[root@practice20 u01]#cd postgres12.4
+[root@practice20 u01]#./configure --prefix=/usr/local/pgsql_12
+
+[root@practice20 u01]#make
+
+[root@practice20 u01]#make install
+
+
+2.initialize the new data directory, note that you need to do this as postgres user
+
+/usr/local/pgsql_12/bin/initdb -D /u01/data_12
+
+
+3.change the  port number for nelwy installed postgres version11.
+
+cd /u01/data_12
+vi postgresql.conf
+port=5433
+
+4.Need to start the postgres 12 version.
+ /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 start
+
+5.To Install contrib modules
+
+==> Before upgrade To check the tables and objects count in postgres11:
+
+
+SELECT
+n.nspname as schema_name
+,CASE c.relkind
+   WHEN 'r' THEN 'table'
+   WHEN 'v' THEN 'view'
+   WHEN 'i' THEN 'index'
+   WHEN 'S' THEN 'sequence'
+   WHEN 's' THEN 'special'
+END as object_type
+,count(1) as object_count
+FROM pg_catalog.pg_class c
+LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind IN ('r','v','i','S','s')
+GROUP BY  n.nspname,
+CASE c.relkind
+   WHEN 'r' THEN 'table'
+   WHEN 'v' THEN 'view'
+   WHEN 'i' THEN 'index'
+   WHEN 'S' THEN 'sequence'
+   WHEN 's' THEN 'special'
+END
+ORDER BY n.nspname,
+CASE c.relkind
+   WHEN 'r' THEN 'table'
+   WHEN 'v' THEN 'view'
+   WHEN 'i' THEN 'index'
+   WHEN 'S' THEN 'sequence'
+   WHEN 's' THEN 'special'
+END;
+
+    schema_name     | object_type | object_count
+--------------------+-------------+--------------
+ information_schema | table       |            7
+ information_schema | view        |           60
+ pg_catalog         | index       |          116
+ pg_catalog         | table       |           62
+ pg_catalog         | view        |           59
+ pg_toast           | index       |           19
+ public             | view        |            2
+(7 rows)
+
+
+==> To check tables
+
+hrms=# \dt
+             List of relations
+ Schema |     Name      | Type  |  Owner
+--------+---------------+-------+----------
+ public | actor         | table | postgres
+ public | address       | table | postgres
+ public | category      | table | postgres
+ public | city          | table | postgres
+ public | country       | table | postgres
+ public | customer      | table | postgres
+ public | film          | table | postgres
+ public | film_actor    | table | postgres
+ public | film_category | table | postgres
+ public | inventory     | table | postgres
+ public | language      | table | postgres
+ public | payment       | table | postgres
+ public | rental        | table | postgres
+ public | staff         | table | postgres
+ public | store         | table | postgres
+(15 rows)
+
+==> To checkextensions
+
+postgres=# select * from pg_extension;
+      extname       | extowner | extnamespace | extrelocatable | extversion | extconfig | extcondition
+--------------------+----------+--------------+----------------+------------+-----------+--------------
+ plpgsql            |       10 |           11 | f              | 1.0        |           |
+ pg_stat_statements |       10 |         2200 | t              | 1.6        |           |
+ pg_buffercache     |       10 |         2200 | t              | 1.3        |           |
+(3 rows)
+
+==> To start the upgrate 11 to 12:
+==================================
+
+Step-1: Stop the 12 cluster:
+============================
+
+[postgres@postgres_upgrade12 ~]$ /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 stop
+2021-06-26 21:13:17.752 IST [22588] LOG:  received fast shutdown request
+waiting for server to shut down....2021-06-26 21:13:17.773 IST [22588] LOG:  aborting any active transactions
+2021-06-26 21:13:17.774 IST [22588] LOG:  background worker "logical replication launcher" (PID 22595) exited with exit code 1
+2021-06-26 21:13:17.774 IST [22590] LOG:  shutting down
+2021-06-26 21:13:17.787 IST [22588] LOG:  database system is shut down
+ done
+server stopped
+
+==> Stop the 11 cluster:
+=========================
+
+[postgres@postgres_upgrade12 ~]$ /usr/local/pgsql/bin/pg_ctl -D /u01/data stop
+LOG:  received fast shutdown request
+LOG:  aborting any active transactions
+LOG:  autovacuum launcher shutting down
+LOG:  shutting down
+waiting for server to shut down....LOG:  database system is shut down
+ done
+server stopped
+[postgres@postgres_upgrade12 ~]$
+
+Step-2: check consistency between the two versions (again, as postgres user):
+==============================================================================
+
+[postgres@postgres_upgrade12 ~]$ cd /u01/data_12
+[postgres@postgres_upgrade12 data_12]$
+[postgres@postgres_upgrade12 data_12]$ /usr/local/pgsql_12/bin/pg_upgrade --old-bindir=/usr/local/pgsql/bin/ --new-bindir=/usr/local/pgsql_12/bin/ --old-datadir=/u01/data_11/ --new-datadir=/u01/data_12/ --check
+Performing Consistency Checks
+-----------------------------
+Checking cluster versions                                   ok
+Checking database user is the install user                  ok
+Checking database connection settings                       ok
+Checking for prepared transactions                          ok
+Checking for reg* data types in user tables                 ok
+Checking for contrib/isn with bigint-passing mismatch       ok
+Checking for tables WITH OIDS                               ok
+Checking for invalid "unknown" user columns                 ok
+Checking for hash indexes                                   ok
+Checking for presence of required libraries                 ok
+Checking database user is the install user                  ok
+Checking for prepared transactions                          ok
+
+*Clusters are compatible*
+
+Step-3: Migrate the data (without the --check argument):
+========================================================
+
+[postgres@postgres_upgrade12 data_12]$ /usr/local/pgsql_12/bin/pg_upgrade --old-bindir=/usr/local/pgsql/bin/ --new-bindir=/usr/local/pgsql_12/bin/ --old-datadir=/u01/data_11/ --new-datadir=/u01/data_12/
+Performing Consistency Checks
+-----------------------------
+Checking cluster versions                                   ok
+Checking database user is the install user                  ok
+Checking database connection settings                       ok
+Checking for prepared transactions                          ok
+Checking for reg* data types in user tables                 ok
+Checking for contrib/isn with bigint-passing mismatch       ok
+Checking for tables WITH OIDS                               ok
+Checking for invalid "unknown" user columns                 ok
+Creating dump of global objects                             ok
+Creating dump of database schemas
+                                                            ok
+Checking for presence of required libraries                 ok
+Checking database user is the install user                  ok
+Checking for prepared transactions                          ok
+
+If pg_upgrade fails after this point, you must re-initdb the
+new cluster before continuing.
+
+Performing Upgrade
+------------------
+Analyzing all rows in the new cluster                       ok
+Freezing all rows in the new cluster                        ok
+Deleting files from new pg_xact                             ok
+Copying old pg_clog to new server                           ok
+Setting next transaction ID and epoch for new cluster       ok
+Deleting files from new pg_multixact/offsets                ok
+Copying old pg_multixact/offsets to new server              ok
+Deleting files from new pg_multixact/members                ok
+Copying old pg_multixact/members to new server              ok
+Setting next multixact ID and offset for new cluster        ok
+Resetting WAL archives                                      ok
+Setting frozenxid and minmxid counters in new cluster       ok
+Restoring global objects in the new cluster                 ok
+Restoring database schemas in the new cluster
+                                                            ok
+Copying user relation files
+                                                            ok
+Setting next OID for new cluster                            ok
+Sync data directory to disk                                 ok
+Creating script to analyze new cluster                      ok
+Creating script to delete old cluster                       ok
+Checking for hash indexes                                   ok
+
+Upgrade Complete
+----------------
+Optimizer statistics are not transferred by pg_upgrade so,
+once you start the new server, consider running:
+    ./analyze_new_cluster.sh
+
+Running this script will delete the old cluster's data files:
+    ./delete_old_cluster.sh
+[postgres@postgres_upgrade12 data_12]$
+
+Step-4: After upgrade start new cluster anf verifiy object count:
+=================================================================
+
+[postgres@postgres_upgrade12 ~]$ /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 start
+waiting for server to start....2021-06-26 21:18:14.475 IST [23279] LOG:  starting PostgreSQL 12.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+2021-06-26 21:18:14.477 IST [23279] LOG:  listening on IPv4 address "0.0.0.0", port 5433
+2021-06-26 21:18:14.477 IST [23279] LOG:  listening on IPv6 address "::", port 5433
+2021-06-26 21:18:14.481 IST [23279] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5433"
+2021-06-26 21:18:14.506 IST [23280] LOG:  database system was shut down at 2021-06-26 21:17:17 IST
+2021-06-26 21:18:14.510 IST [23279] LOG:  database system is ready to accept connections
+ done
+server started
+[postgres@postgres_upgrade12 ~]$ psql -p 5433
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# \dt
+              List of relations
+ Schema |       Name       | Type  |  Owner
+--------+------------------+-------+----------
+ public | pgbench_accounts | table | postgres
+ public | pgbench_branches | table | postgres
+ public | pgbench_history  | table | postgres
+ public | pgbench_tellers  | table | postgres
+(4 rows)
+
+Step-5: change the port for new cluster( from 5433 to 5432):
+=============================================================
+==> To stop the postgres11 cluster:
+
+[postgres@postgres_upgrade12 ~]$ /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 stop
+2021-06-26 21:19:27.200 IST [23279] LOG:  received fast shutdown request
+waiting for server to shut down....2021-06-26 21:19:27.220 IST [23279] LOG:  aborting any active transactions
+2021-06-26 21:19:27.222 IST [23279] LOG:  background worker "logical replication launcher" (PID 23286) exited with exit code 1
+2021-06-26 21:19:27.222 IST [23281] LOG:  shutting down
+2021-06-26 21:19:27.246 IST [23279] LOG:  database system is shut down
+ done
+server stopped
+
+==> To change the port number in postgresql.conf file
+
+[postgres@postgres_upgrade12 ~]$ cd /u01/data_12
+[postgres@postgres_upgrade12 data_12]$ vi postgresql.conf
+
+ port = 5432 
+ 
+ [postgres@postgres_upgrade12 ~]$ /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 start
+waiting for server to start....2021-06-26 21:20:23.591 IST [23394] LOG:  starting PostgreSQL 12.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+2021-06-26 21:20:23.591 IST [23394] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2021-06-26 21:20:23.592 IST [23394] LOG:  listening on IPv6 address "::", port 5432
+2021-06-26 21:20:23.596 IST [23394] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2021-06-26 21:20:23.613 IST [23395] LOG:  database system was shut down at 2021-06-26 21:19:27 IST
+2021-06-26 21:20:23.616 IST [23394] LOG:  database system is ready to accept connections
+ done
+server started
+[postgres@postgres_upgrade12 ~]$ psql
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# show port;
+ port
+------
+ 5432
+(1 row)
+
+[postgres@postgres11_12 data_12]$ psql
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# \c dvdrental
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+You are now connected to database "dvdrental".
+dvdrental=# \dt
+             List of relations
+ Schema |     Name      | Type  |  Owner
+--------+---------------+-------+----------
+ public | actor         | table | postgres
+ public | address       | table | postgres
+ public | category      | table | postgres
+ public | city          | table | postgres
+ public | country       | table | postgres
+ public | customer      | table | postgres
+ public | film          | table | postgres
+ public | film_actor    | table | postgres
+ public | film_category | table | postgres
+ public | inventory     | table | postgres
+ public | language      | table | postgres
+ public | payment       | table | postgres
+ public | rental        | table | postgres
+ public | staff         | table | postgres
+ public | store         | table | postgres
+(15 rows)
+
+dvdrental=# select version();
+                                                 version
+---------------------------------------------------------------------------------------------------------
+ PostgreSQL 12.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+(1 row)
+
+dvdrental=# SELECT
+dvdrental-# n.nspname as schema_name
+dvdrental-# ,CASE c.relkind
+dvdrental-#    WHEN 'r' THEN 'table'
+dvdrental-#    WHEN 'v' THEN 'view'
+dvdrental-#    WHEN 'i' THEN 'index'
+dvdrental-#    WHEN 'S' THEN 'sequence'
+dvdrental-#    WHEN 's' THEN 'special'
+dvdrental-# END as object_type
+dvdrental-# ,count(1) as object_count
+dvdrental-# FROM pg_catalog.pg_class c
+dvdrental-# LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+dvdrental-# WHERE c.relkind IN ('r','v','i','S','s')
+dvdrental-# GROUP BY  n.nspname,
+dvdrental-# CASE c.relkind
+dvdrental-#    WHEN 'r' THEN 'table'
+dvdrental-#    WHEN 'v' THEN 'view'
+dvdrental-#    WHEN 'i' THEN 'index'
+dvdrental-#    WHEN 'S' THEN 'sequence'
+dvdrental-#    WHEN 's' THEN 'special'
+dvdrental-# END
+dvdrental-# ORDER BY n.nspname,
+dvdrental-# CASE c.relkind
+dvdrental-#    WHEN 'r' THEN 'table'
+dvdrental-#    WHEN 'v' THEN 'view'
+dvdrental-#    WHEN 'i' THEN 'index'
+dvdrental-#    WHEN 'S' THEN 'sequence'
+dvdrental-#    WHEN 's' THEN 'special'
+dvdrental-# END;
+    schema_name     | object_type | object_count
+--------------------+-------------+--------------
+ information_schema | table       |            7
+ information_schema | view        |           61
+ pg_catalog         | index       |          117
+ pg_catalog         | table       |           63
+ pg_catalog         | view        |           63
+ pg_toast           | index       |           44
+ public             | index       |           32
+ public             | sequence    |           13
+ public             | table       |           15
+ public             | view        |            7
+(10 rows)
+
+==> To check hrms database
+===========================
+
+dvdrental=# \c hrms
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+You are now connected to database "hrms".
+hrms=#
+hrms=#
+hrms=# select tablename,tablespace from pg_tables where tablename in ('actor','address','category','city','country','customer','film','film_actor','film_category','language','inventory','payment','rental','staff','store');
+   tablename   | tablespace
+---------------+------------
+ film_actor    | hrms_tbs
+ address       | hrms_tbs
+ city          | hrms_tbs
+ actor         | hrms_tbs
+ film_category | hrms_tbs
+ inventory     | hrms_tbs
+ category      | hrms_tbs
+ country       | hrms_tbs
+ customer      | hrms_tbs
+ language      | hrms_tbs
+ rental        | hrms_tbs
+ staff         | hrms_tbs
+ store         | hrms_tbs
+ payment       | hrms_tbs
+ film          | hrms_tbs
+(15 rows)
+
+hrms=# \dt
+             List of relations
+ Schema |     Name      | Type  |  Owner
+--------+---------------+-------+----------
+ public | actor         | table | postgres
+ public | address       | table | postgres
+ public | category      | table | postgres
+ public | city          | table | postgres
+ public | country       | table | postgres
+ public | customer      | table | postgres
+ public | film          | table | postgres
+ public | film_actor    | table | postgres
+ public | film_category | table | postgres
+ public | inventory     | table | postgres
+ public | language      | table | postgres
+ public | payment       | table | postgres
+ public | rental        | table | postgres
+ public | staff         | table | postgres
+ public | store         | table | postgres
+(15 rows)
+
+
+
+Step-6: Need to run below script to get latest stats:
+=====================================================
+
+[postgres@postgres_upgrade12 ~]$ cd /u01/data_12
+[postgres@postgres_upgrade12 data_12]$ ./analyze_new_cluster.sh
+This script will generate minimal optimizer statistics rapidly
+so your system is usable, and then gather statistics twice more
+with increasing accuracy.  When it is done, your system will
+have the default level of optimizer statistics.
+
+If you have used ALTER TABLE to modify the statistics target for
+any tables, you might want to remove them and restore them after
+running this script because they will delay fast statistics generation.
+
+If you would like default statistics as quickly as possible, cancel
+this script and run:
+    "/usr/local/pgsql_12/bin/vacuumdb" --all --analyze-only
+
+vacuumdb: processing database "dvdrental": Generating minimal optimizer statistics (1 target)
+vacuumdb: processing database "postgres": Generating minimal optimizer statistics (1 target)
+vacuumdb: processing database "template1": Generating minimal optimizer statistics (1 target)
+vacuumdb: processing database "dvdrental": Generating medium optimizer statistics (10 targets)
+vacuumdb: processing database "postgres": Generating medium optimizer statistics (10 targets)
+vacuumdb: processing database "template1": Generating medium optimizer statistics (10 targets)
+vacuumdb: processing database "dvdrental": Generating default (full) optimizer statistics
+vacuumdb: processing database "postgres": Generating default (full) optimizer statistics
+vacuumdb: processing database "template1": Generating default (full) optimizer statistics
+
+Done
+
+Step-7:Need to run the below script to delete old cluster:
+==========================================================
+
+[root@postgres_upgrade12 postgresql-12.0]# cd /u01/data_12
+[root@postgres_upgrade12 data_12]#
+[root@postgres_upgrade12 data_12]# ./delete_old_cluster.sh
+[root@postgres_upgrade12 data_12]#
+[root@postgres_upgrade12 data_12]# cd /u01/data
+-bash: cd: /u01/data: No such file or directory.
+
+
+[postgres@postgres_upgrade12 ~]$ psql
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=#
+postgres=#
+postgres=# select version();
+                                                 version
+---------------------------------------------------------------------------------------------------------
+ PostgreSQL 12.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+(1 row)
+
+

@@ -1,0 +1,37 @@
+Backups pg_dumpall:
+==================
+
+1. To take the backup from entire cluster backup
+
+==> Create the cluster backup directory
+
+[root@postgres11_custom_cre ~]# mkdir -p /u01/clubkp
+[root@postgres11_custom_cre ~]#
+[root@postgres11_custom_cre ~]# chown -R postgres:postgres /u01/clubkp
+
+
+[postgres@postgres11_custom_cre bin]$ ./pg_dumpall -U postgres -p 5432 -f /u01/clubkp/cluster_bkp.sql
+
+[root@postgres11_custom_cre ~]# cd /u01/clubkp
+[root@postgres11_custom_cre clubkp]# ls -lrt
+total 2708
+-rw-rw-r--. 1 postgres postgres 2766377 Jul 13 08:23 cluster_bkp.sql
+
+2. To take the backup from global objects.
+
+[postgres@postgres11_custom_cre bin]$ ./pg_dumpall -U postgres  -p 5432  --globals-only --file=global_bkp.sql
+
+[root@postgres11_custom_cre ~]# cd /u01/clubkp
+[root@postgres11_custom_cre clubkp]# ll
+total 2708
+-rw-rw-r--. 1 postgres postgres 2766377 Jul 13 08:23 cluster_bkp.sql
+-rw-rw-r--. 1 postgres postgres     752 Jul 13 08:23 global_bkp.sql
+
+
+3. To restore the cluster
+
+[postgres@postgres11_custom_cre bin]$ psql -U postgres -p 5432 < /u01/clubkp/cluster_bkp.sql
+
+4. To restore the globals
+
+[postgres@postgres11_custom_cre bin]$ psql -U postgres -p 5432 < /u01/clubkp/global_bkp.sql

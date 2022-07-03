@@ -1,0 +1,410 @@
+Postgres11 & postgres12 instalation via source method in one server:
+===================================================================
+Postgres11 install via source method:
+=====================================
+step-1
+======
+Download the software from below link and place into the server
+
+https://www.postgresql.org/ftp/source/v11.0/
+
+postgresql-11.0.tar.gz
+
+Step-2
+======
+
+The above software copy to the  /u01
+
+[root@machine2 ~]# cp postgresql-11.0.tar.gz /u01
+[root@machine2 ~]# cd /u01
+[root@machine2 u01]# ls -lrt
+total 27356
+drwx------. 2 root root    16384 May 11 13:39 lost+found
+-rw-r--r--. 1 root root 27992346 May 11 15:36 postgresql-11.0.tar.gz
+
+Step3
+=====
+Untar the postgresql-11.0.tar.gz software in  /u01
+
+[root@machine2 u01]# tar -xvf postgresql-11.0.tar.gz
+
+[root@machine2 u01]# ls -lrt
+total 27360
+drwxrwxrwx. 6 1107 1107     4096 Oct 16  2018 postgresql-11.0
+drwx------. 2 root root    16384 May 11 13:39 lost+found
+-rw-r--r--. 1 root root 27992346 May 11 15:36 postgresql-11.0.tar.gz
+
+Step-4
+======
+Create groups and user
+
+[root@machine2 ~]# groupadd postgres
+[root@machine2 ~]# groupadd dba
+[root@machine2 ~]# useradd -g postgres -G dba postgres
+
+To set password from user postgres
+
+[root@machine2 ~]# passwd postgres
+Changing password for user postgres.
+New password:
+BAD PASSWORD: it is based on a dictionary word
+Retype new password:
+passwd: all authentication tokens updated successfully.
+
+Step-5
+======
+Create Data Directory from path /u01
+
+[root@machine2 ~]# mkdir /u01/data_11
+[root@machine2 ~]#
+[root@machine2 ~]# cd /u01
+[root@machine2 u01]# ls -lrt
+total 27368
+drwxrwxrwx. 6 1107 1107     4096 Oct 16  2018 postgresql-11.0
+drwx------. 2 root root    16384 May 11 13:39 lost+found
+-rw-r--r--. 1 root root 27992346 May 11 15:36 postgresql-11.0.tar.gz
+drwxr-xr-x. 2 root root     4096 May 11 15:41 data_11
+drwxr-xr-x. 2 root root     4096 May 11 15:41 soft
+
+
+step-6
+======
+Change the ownership of Data Directory /u01/data_11
+
+[root@machine2 ~]# chown -R postgres:postgres /u01/data_11
+[root@machine2 ~]# chmod -R 775 /u01/data_11
+[root@machine2 ~]#
+[root@machine2 ~]# cd /u01
+[root@machine2 u01]# ls -lrt
+total 27368
+drwxrwxrwx. 6     1107     1107     4096 Oct 16  2018 postgresql-11.0
+drwx------. 2 root     root        16384 May 11 13:39 lost+found
+-rw-r--r--. 1 root     root     27992346 May 11 15:36 postgresql-11.0.tar.gz
+drwxrwxr-x. 2 postgres postgres     4096 May 11 15:41 data_11
+drwxr-xr-x. 2 root     root         4096 May 11 15:41 soft
+
+step-7
+======
+To start the instalation process in postgresql-11.0
+
+[root@machine2 u01]# cd postgresql-11.0
+[root@machine2 postgresql-11.0]# ls -lrt
+total 744
+-rw-r--r--.  1 1107 1107   1212 Oct 16  2018 README
+-rw-r--r--.  1 1107 1107   1682 Oct 16  2018 Makefile
+-rw-r--r--.  1 1107 1107    284 Oct 16  2018 HISTORY
+-rw-r--r--.  1 1107 1107   3664 Oct 16  2018 GNUmakefile.in
+-rw-r--r--.  1 1107 1107   1192 Oct 16  2018 COPYRIGHT
+-rw-r--r--.  1 1107 1107  83596 Oct 16  2018 configure.in
+-rwxr-xr-x.  1 1107 1107 558874 Oct 16  2018 configure
+-rw-r--r--.  1 1107 1107    486 Oct 16  2018 aclocal.m4
+drwxrwxrwx. 56 1107 1107   4096 Oct 16  2018 contrib
+drwxrwxrwx.  2 1107 1107   4096 Oct 16  2018 config
+drwxrwxrwx.  3 1107 1107   4096 Oct 16  2018 doc
+-rw-r--r--.  1 1107 1107  72717 Oct 16  2018 INSTALL
+drwxrwxrwx. 16 1107 1107   4096 Oct 16  2018 src
+
+Step-8
+======
+
+[root@machine2 postgresql-11.0]# ./configure
+
+[root@machine2 postgresql-11.0]# make
+
+[root@machine2 postgresql-11.0]# make install
+
+PostgreSQL installation complete.
+
+Step-9
+======
+Creating cluster:
+You can create the cluster by using "initdb" utility
+
+[root@machine2 postgresql-11.0]# su - postgres
+-bash-4.1$ /usr/local/pgsql/bin/initdb -D /u01/data_11
+The files belonging to this database system will be owned by user "postgres".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "en_US.UTF-8".
+The default database encoding has accordingly been set to "UTF8".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+fixing permissions on existing directory /u01/data ... ok
+creating subdirectories ... ok
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting dynamic shared memory implementation ... posix
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+WARNING: enabling "trust" authentication for local connections
+You can change this by editing pg_hba.conf or using the option -A, or
+--auth-local and --auth-host, the next time you run initdb.
+
+Success. You can now start the database server using:
+
+step-10
+=======
+Starting the cluster:
+ 
+To start the cluster by using "pg_ctl" utility
+-bash-4.1$ /usr/local/pgsql/bin/pg_ctl -D /u01/data_11 start
+waiting for server to start....2021-05-11 15:56:02.674 IST [22544] LOG:  listening on IPv6 address "::1", port 5432
+2021-05-11 15:56:02.674 IST [22544] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2021-05-11 15:56:02.678 IST [22544] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2021-05-11 15:56:02.687 IST [22545] LOG:  database system was shut down at 2021-05-11 15:54:49 IST
+2021-05-11 15:56:02.690 IST [22544] LOG:  database system is ready to accept connections
+ done
+server started
+
+
+Step-11
+=======
+
+Connecting to cluster:
+To connecting the cluster by using "psql" utility
+
+-bash-4.1$ psql
+psql (8.4.20, server 11.0)
+WARNING: psql version 8.4, server version 11.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(3 rows)
+
+
+Postgres12 install via source method:
+=====================================
+
+Step-1: 
+======
+Download the software from below link and place into the server
+
+https://www.postgresql.org/ftp/source/v11.0/
+
+postgresql-12.0.tar.gz
+
+Step-2
+======
+
+The above software copy to the  /u01
+
+[root@machine2 ~]# cp postgresql-12.0.tar.gz /u01
+
+[root@postgres11&12 ~]# cd /u01
+[root@postgres11&12 u01]# ls -lrt
+total 53152
+-rw-r--r--.  1 root     root     27992346 Apr 11 21:16 postgresql-11.0.tar.gz
+-rw-r--r--.  1 root     root     26393892 May 13 07:34 postgresql-12.0.tar.gz
+drwx------.  2 root     root        16384 Jun  7 07:13 lost+found
+drwxrwxr-x.  2 postgres postgres     4096 Jun  7 14:49 data
+drwxr-xr-x.  2 root     root         4096 Jun  7 14:50 soft
+drwxrwxr-x.  2 postgres postgres     4096 Jul 11 16:30 data_12
+drwxrwxrwx.  6     1107     1107     4096 Jul 11 16:32 postgresql-11.0
+drwx------. 19 postgres postgres     4096 Jul 11 16:37 data_11
+
+Step-3: Untar the postgresql-12.0.tar.gz software in /u01
+===========================================================
+
+[root@machine2 u01]# tar -xvf postgresql-12.0.tar.gz
+
+[root@postgres11&12 u01]# ll
+total 53156
+drwxrwxr-x.  2 postgres postgres     4096 Jun  7 14:49 data
+drwx------. 19 postgres postgres     4096 Jul 11 16:37 data_11
+drwxrwxr-x.  2 postgres postgres     4096 Jul 11 16:30 data_12
+drwx------.  2 root     root        16384 Jun  7 07:13 lost+found
+drwxrwxrwx.  6     1107     1107     4096 Jul 11 16:32 postgresql-11.0
+-rw-r--r--.  1 root     root     27992346 Apr 11 21:16 postgresql-11.0.tar.gz
+drwxrwxrwx.  6     1107     1107     4096 Oct  1  2019 postgresql-12.0
+-rw-r--r--.  1 root     root     26393892 May 13 07:34 postgresql-12.0.tar.gz
+drwxr-xr-x.  2 root     root         4096 Jun  7 14:50 soft
+
+Step-4: Create Data Directory & change the ownership from path /u01
+===================================================================
+
+[root@postgres11&12 ~]# mkdir -p /u01/data_12
+[root@postgres11&12 ~]# chown -R postgres:postgres /u01/data_12
+[root@postgres11&12 ~]# chmod -R 775 /u01/data_12
+
+
+Step-5: To start the instalation process in postgresql-12.0
+===========================================================
+
+[root@postgres11&12 postgresql-12.0]# ll
+total 748
+-rw-r--r--.  1 1107 1107    522 Oct  1  2019 aclocal.m4
+drwxrwxrwx.  2 1107 1107   4096 Oct  1  2019 config
+-rwxr-xr-x.  1 1107 1107 570943 Oct  1  2019 configure
+-rw-r--r--.  1 1107 1107  82660 Oct  1  2019 configure.in
+drwxrwxrwx. 56 1107 1107   4096 Oct  1  2019 contrib
+-rw-r--r--.  1 1107 1107   1192 Oct  1  2019 COPYRIGHT
+drwxrwxrwx.  3 1107 1107   4096 Oct  1  2019 doc
+-rw-r--r--.  1 1107 1107   3909 Oct  1  2019 GNUmakefile.in
+-rw-r--r--.  1 1107 1107    284 Oct  1  2019 HISTORY
+-rw-r--r--.  1 1107 1107  61608 Oct  1  2019 INSTALL
+-rw-r--r--.  1 1107 1107   1665 Oct  1  2019 Makefile
+-rw-r--r--.  1 1107 1107   1212 Oct  1  2019 README
+drwxrwxrwx. 16 1107 1107   4096 Oct  1  2019 src
+
+
+[root@postgres11&12 postgresql-12.0]# ./configure --prefix=/usr/local/pgsql_12
+[root@postgres11&12 postgresql-12.0]# make
+[root@postgres11&12 postgresql-12.0]# make install
+
+Step-6: Creating cluster
+========================
+You can create the cluster by using "initdb" utility
+
+[postgres@postgres11&12 ~]$ /usr/local/pgsql_12/bin/initdb -D /u01/data_12
+The files belonging to this database system will be owned by user "postgres".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "en_US.UTF-8".
+The default database encoding has accordingly been set to "UTF8".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+fixing permissions on existing directory /u01/data_12 ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... Asia/Kolkata
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+initdb: warning: enabling "trust" authentication for local connections
+You can change this by editing pg_hba.conf or using the option -A, or
+--auth-local and --auth-host, the next time you run initdb.
+
+Success. You can now start the database server using:
+
+    /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 -l logfile start
+
+Step-7: Starting the cluster
+============================
+
+[postgres@postgres11&12 ~]$ /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 start
+waiting for server to start....2021-07-11 16:56:55.430 IST [21681] LOG:  starting PostgreSQL 12.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+2021-07-11 16:56:55.433 IST [21681] LOG:  could not bind IPv6 address "::1": Address already in use
+2021-07-11 16:56:55.433 IST [21681] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2021-07-11 16:56:55.433 IST [21681] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2021-07-11 16:56:55.433 IST [21681] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2021-07-11 16:56:55.434 IST [21681] WARNING:  could not create listen socket for "localhost"
+2021-07-11 16:56:55.434 IST [21681] FATAL:  could not create any TCP/IP sockets
+2021-07-11 16:56:55.435 IST [21681] LOG:  database system is shut down
+ stopped waiting
+pg_ctl: could not start server
+Examine the log output.
+
+Note: Each cluster listen different port number.
+
+Step-8: To change the port number from postgresql.conf file
+===========================================================
+
+# - Connection Settings -
+
+listen_addresses = '*'          # what IP address(es) to listen on;
+                                        # comma-separated list of addresses;
+                                        # defaults to 'localhost'; use '*' for all
+                                        # (change requires restart)
+port = 5555                             # (change requires restart)
+max_connections = 100                   # (change requires restart)
+
+Step-9: To start the cluster
+============================
+
+[postgres@postgres11&12 ~]$ /usr/local/pgsql_12/bin/pg_ctl -D /u01/data_12 start
+waiting for server to start....2021-07-11 17:00:07.184 IST [21727] LOG:  starting PostgreSQL 12.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+2021-07-11 17:00:07.184 IST [21727] LOG:  listening on IPv4 address "0.0.0.0", port 5555
+2021-07-11 17:00:07.185 IST [21727] LOG:  listening on IPv6 address "::", port 5555
+2021-07-11 17:00:07.189 IST [21727] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5555"
+2021-07-11 17:00:07.202 IST [21728] LOG:  database system was shut down at 2021-07-11 16:55:21 IST
+2021-07-11 17:00:07.205 IST [21727] LOG:  database system is ready to accept connections
+ done
+server started
+[postgres@postgres11&12 ~]$ psql -p 5555
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(3 rows)
+
+Step-10: To check the both clusters are running or not
+=======================================================
+
+[postgres@postgres11&12 ~]$ ps -efa|grep postgres
+postgres 12211     1  0 16:37 pts/1    00:00:00 /usr/local/pgsql/bin/postgres -D /u01/data_11
+postgres 12213 12211  0 16:37 ?        00:00:00 postgres: checkpointer
+postgres 12214 12211  0 16:37 ?        00:00:00 postgres: background writer
+postgres 12215 12211  0 16:37 ?        00:00:00 postgres: walwriter
+postgres 12216 12211  0 16:37 ?        00:00:00 postgres: autovacuum launcher
+postgres 12217 12211  0 16:37 ?        00:00:00 postgres: stats collector
+postgres 12218 12211  0 16:37 ?        00:00:00 postgres: logical replication launcher
+root     21624  3137  0 16:54 pts/1    00:00:00 su - postgres
+postgres 21625 21624  0 16:54 pts/1    00:00:00 -bash
+postgres 21727     1  0 17:00 ?        00:00:00 /usr/local/pgsql_12/bin/postgres -D /u01/data_12
+postgres 21729 21727  0 17:00 ?        00:00:00 postgres: checkpointer
+postgres 21730 21727  0 17:00 ?        00:00:00 postgres: background writer
+postgres 21731 21727  0 17:00 ?        00:00:00 postgres: walwriter
+postgres 21732 21727  0 17:00 ?        00:00:00 postgres: autovacuum launcher
+postgres 21733 21727  0 17:00 ?        00:00:00 postgres: stats collector
+postgres 21734 21727  0 17:00 ?        00:00:00 postgres: logical replication launcher
+postgres 21747 21625  3 17:00 pts/1    00:00:00 ps -efa
+postgres 21748 21625  0 17:00 pts/1    00:00:00 grep postgres
+
+
+[postgres@postgres11&12 ~]$ psql
+psql (8.4.20, server 11.0)
+WARNING: psql version 8.4, server version 11.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# select version();
+                                                 version
+---------------------------------------------------------------------------------------------------------
+ PostgreSQL 11.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+(1 row)
+
+
+[postgres@postgres11&12 ~]$ psql -p 5555
+psql (8.4.20, server 12.0)
+WARNING: psql version 8.4, server version 12.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# select version();
+                                                 version
+---------------------------------------------------------------------------------------------------------
+ PostgreSQL 12.0 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-18), 64-bit
+(1 row)
+
+
+

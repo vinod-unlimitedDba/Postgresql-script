@@ -1,0 +1,228 @@
+HOW TO CREATE DATABASE:
+=======================
+POSTGRES: 
+=========
+	==>	It is the user defined database and default connected to this database.
+
+TEMPLATE1:
+=========
+	==>	CREATE DATABASE basically makes a copy from template1 database.
+		Template1 is the one used by default. You can alter / add / remove objects there to affect every newly created DB. 
+
+create database hrms template=template0
+
+create database hrms;
+
+
+TEMPLATE0:
+==========
+	==>	Template0 contains the same data as template1. We could think of this template database as a fallback if anything goes wrong to template1. 
+	 	If anything goes wrong with template1, It can be dropped and recreated with template1 from template0.
+
+create database template1 template=template0;
+
+Syntax:
+     
+	 CREATE DATABASE name
+    [ [ WITH ] [ OWNER [=] dbowner ]
+           [ TEMPLATE [=] template ]
+           [ ENCODING [=] encoding ]
+           [ LC_COLLATE [=] lc_collate ]
+           [ LC_CTYPE [=] lc_ctype ]
+           [ TABLESPACE [=] tablespace ]
+           [ CONNECTION LIMIT [=] connlimit ] ]
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(3 rows)
+
+
+postgres=# create database hrms;
+CREATE DATABASE
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ hrms      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(4 rows)
+
+
+
+HOW TO KNOW THE DATABASE IS TEMPLATE:
+====================================
+
+postgres=# select datname,datallowconn,datistemplate from pg_database where datistemplate='t';
+  datname  | datallowconn | datistemplate
+-----------+--------------+---------------
+ template1 | t            | t
+ template0 | f            | t
+(2 rows)
+
+
+HOW TO KONOW THE DATABASE IS NONTEMPLATE:
+=========================================
+
+postgres=# select datname,datallowconn,datistemplate from pg_database where datistemplate='f';
+ datname  | datallowconn | datistemplate
+----------+--------------+---------------
+ postgres | t            | f
+ hrms     | t            | f
+(2 rows)
+
+
+HOW TO DROP THE DATABASE:
+=========================
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ hrms      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(4 rows)
+
+
+postgres=# drop database hrms;
+DROP DATABASE
+
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(3 rows)
+
+
+HOW TO DROP THE TEMPLATE DATBASE:
+==============================
+
+postgres=# drop database template1;
+ERROR:  cannot drop a template database
+
+postgres=# update pg_database set datistemplate='f' where datname='template1';
+UPDATE 1
+
+postgres=# select datname,datallowconn,datistemplate from pg_database;
+  datname  | datallowconn | datistemplate
+-----------+--------------+---------------
+ postgres  | t            | f
+ template0 | f            | t
+ template1 | t            | f
+(3 rows)
+
+postgres=# drop database template1;
+DROP DATABASE
+
+postgres=# select datname,datallowconn,datistemplate from pg_database;
+  datname  | datallowconn | datistemplate
+-----------+--------------+---------------
+ postgres  | t            | f
+ template0 | f            | t
+(2 rows)
+
+ONCE TEMPLATE1 DATABASE IS DROPED HOW TO CREATE THE DATABASE:
+=============================================================
+
+postgres=# create database hrms;
+ERROR:  template database "template1" does not exist
+
+postgres=# create database hrms template template0;
+CREATE DATABASE
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ hrms      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(3 rows)
+
+HOW TO CREATE TEMPLATE1 DATABASE:
+=================================
+
+postgres=# create database template1 template template0;
+CREATE DATABASE
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ hrms      | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+(4 rows)
+
+TO CHANGE THE TEMPLATE1 DATABASE IS TEMPLATE DATBAASE:
+======================================================
+
+postgres=# select datname,datistemplate from pg_database;
+  datname  | datistemplate
+-----------+---------------
+ postgres  | f
+ template0 | t
+ hrms      | f
+ template1 | f
+(4 rows)
+
+
+postgres=# update pg_database set datistemplate='t' where datname='template1';
+UPDATE 1
+
+postgres=# select datname,datistemplate from pg_database;
+  datname  | datistemplate
+-----------+---------------
+ postgres  | f
+ template0 | t
+ hrms      | f
+ template1 | t
+(4 rows)
+
+
+
+
+ALTER DATABASE
+===============
+ALTER DATABASE name [ [ WITH ] option [ ... ] ]
+
+where option can be:
+
+    CONNECTION LIMIT connlimit
+
+ALTER DATABASE name RENAME TO new_name
+
+ALTER DATABASE name OWNER TO new_owner
+
+ALTER DATABASE name SET TABLESPACE new_tablespace
+
+ALTER DATABASE name SET configuration_parameter { TO | = } { value | DEFAULT }
+ALTER DATABASE name SET configuration_parameter FROM CURRENT
+ALTER DATABASE name RESET configuration_parameter
+ALTER DATABASE name RESET ALL
+
+

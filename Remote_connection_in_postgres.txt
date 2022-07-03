@@ -1,0 +1,229 @@
+How to connect client server to database server
+===============================================
+
+SERVER	==>	192.168.43.176          machine3.oracle.com     machine3
+CLIENT ===>	192.168.43.99           machine4.oracle.com     machine4
+
+Step1:Download the client rpms and install the client s/w
+===========================================================
+
+https://yum.postgresql.org/rpmchart/
+
+postgresql11-libs-11.11-2PGDG.rhel6.x86_64.rpm
+postgresql11-11.11-2PGDG.rhel6.x86_64.rpm
+
+
+Install the RPM's:
+
+[root@machine4 ~]# rpm -ivh postgresql11-libs-11.11-2PGDG.rhel6.x86_64.rpm
+warning: postgresql11-libs-11.11-2PGDG.rhel6.x86_64.rpm: Header V4 DSA/SHA1 Signature, key ID 442df0f8: NOKEY
+Preparing...                ########################################### [100%]
+   1:postgresql11-libs      ########################################### [100%]
+[root@machine4 ~]# rpm -ivh postgresql11-11.11-2PGDG.rhel6.x86_64.rpm
+warning: postgresql11-11.11-2PGDG.rhel6.x86_64.rpm: Header V4 DSA/SHA1 Signature, key ID 442df0f8: NOKEY
+Preparing...                ########################################### [100%]
+   1:postgresql11           ########################################### [100%]
+
+Step2:checing cleint s/w installed or not?
+========================================
+[root@machine4 ~]# cd /usr/pgsql-11
+[root@machine4 pgsql-11]# ls -lrt
+total 12
+drwxr-xr-x. 2 root root 4096 May 12 11:08 lib
+drwxr-xr-x. 2 root root 4096 May 12 11:08 bin
+drwxr-xr-x. 4 root root 4096 May 12 11:08 share
+[root@machine4 pgsql-11]# cd bin
+[root@machine4 bin]# ls -lrt
+total 2340
+-rwxr-xr-x. 1 root root 610096 Feb 11 20:20 psql
+-rwxr-xr-x. 1 root root  21616 Feb 11 20:20 pg_test_timing
+-rwxr-xr-x. 1 root root  26256 Feb 11 20:20 pg_test_fsync
+-rwxr-xr-x. 1 root root  79296 Feb 11 20:20 pg_rewind
+-rwxr-xr-x. 1 root root  67328 Feb 11 20:20 pg_receivewal
+-rwxr-xr-x. 1 root root  49112 Feb 11 20:20 pg_isready
+-rwxr-xr-x. 1 root root  85144 Feb 11 20:20 pg_dumpall
+-rwxr-xr-x. 1 root root 393664 Feb 11 20:20 pg_dump
+-rwxr-xr-x. 1 root root 140024 Feb 11 20:20 pgbench
+-rwxr-xr-x. 1 root root 108296 Feb 11 20:20 pg_basebackup
+-rwxr-xr-x. 1 root root  48720 Feb 11 20:20 dropdb
+-rwxr-xr-x. 1 root root  53008 Feb 11 20:20 createdb
+-rwxr-xr-x. 1 root root  52944 Feb 11 20:20 clusterdb
+-rwxr-xr-x. 1 root root  61392 Feb 11 20:20 vacuumdb
+-rwxr-xr-x. 1 root root  57136 Feb 11 20:20 reindexdb
+-rwxr-xr-x. 1 root root  77600 Feb 11 20:20 pg_waldump
+-rwxr-xr-x. 1 root root 122880 Feb 11 20:20 pg_upgrade
+-rwxr-xr-x. 1 root root 152544 Feb 11 20:20 pg_restore
+-rwxr-xr-x. 1 root root  26232 Feb 11 20:20 pg_config
+-rwxr-xr-x. 1 root root  23568 Feb 11 20:20 pg_archivecleanup
+-rwxr-xr-x. 1 root root  48688 Feb 11 20:20 dropuser
+-rwxr-xr-x. 1 root root  57464 Feb 11 20:20 createuser
+
+step3:Goto machine server and enable below parameters:
+==========================================================
+ 1.Enable the below parameters in postgresconf.file where cluster is running and restart the cluster:
+[root@machine3] cd /u01/data
+
+[root@machine3 data]# vi postgresql.conf
+ 
+-->listen_address='*'
+-->port=5432.
+
+==>	restart the cluster:
+
+
+2.Need to give a entry app server ip into pg_hba.conf where which cluster is running
+=====================================================================================
+
+[root@machine3 data]# vi pg_hba.conf
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# "local" is for Unix domain socket connections only
+local   all             all                                     trust
+# IPv4 local connections:
+host    postgres       postgres       192.168.55.104/0             trust				#client server IP details.
+# IPv6 local connections:
+host    all             all             ::1/128                 trust
+# Allow replication connections from localhost, by a user with the
+# replication privilege.
+local   replication     all                                     trust
+host    replication     all             127.0.0.1/32            trust
+host    replication     all             ::1/128                 trust
+
+==>services need to be reload: pg_ctl reload.
+
+
+# IPv4 local connections:
+host    postgres        postgres        192.168.225.213/0       trust
+
+
+
+Step-3:To stop the firewalls
+=============================
+
+Stop the iptables service. Type: # service iptables stop
+
+[root@machine3 ~]# service iptables stop
+iptables: Setting chains to policy ACCEPT: nat mangle filte[  OK  ]
+iptables: Flushing firewall rules:                         [  OK  ]
+iptables: Unloading modules:                               [  OK  ]
+
+Step-4:Add the /etc/hohsts entries on both sides and save it.
+==========================================================
+
+[root@machine3 ~]# vi /etc/hosts
+
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+
+192.168.43.103          machine4.oracle.com     machine4
+192.168.43.176          machine3.oracle.com     machine3
+~
+
+[root@machine4 ~]# vi /etc/hosts
+
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+
+192.168.43.176          machine3.oracle.com     machine3
+192.168.43.99           machine4.oracle.com     machine4
+~
+
+
+Step-5:Now try to establish the connection from client to server
+==============================================================
+[root@machine4 ~]# su - postgres
+-bash-4.1$ psql -d postgres -U postgres -h machine3.oracle.com -p 5432
+psql (8.4.20, server 11.0)
+WARNING: psql version 8.4, server version 11.0.
+         Some psql features might not work.
+Type "help" for help.
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |  Collation  |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres
+                                                             : postgres=CTc/postgres
+(3 rows)
+
+psql connection optons:
+======================
+
+
+[postgres@machine2 bin]$ ./psql--help
+-bash: ./psql--help: No such file or directory
+[postgres@machine2 bin]$ ./psql --help
+psql is the PostgreSQL interactive terminal.
+
+Usage:
+  psql [OPTION]... [DBNAME [USERNAME]]
+
+General options:
+  -c, --command=COMMAND    run only single command (SQL or internal) and exit
+  -d, --dbname=DBNAME      database name to connect to (default: "postgres")
+  -f, --file=FILENAME      execute commands from file, then exit
+  -l, --list               list available databases, then exit
+  -v, --set=, --variable=NAME=VALUE
+                           set psql variable NAME to VALUE
+                           (e.g., -v ON_ERROR_STOP=1)
+  -V, --version            output version information, then exit
+  -X, --no-psqlrc          do not read startup file (~/.psqlrc)
+  -1 ("one"), --single-transaction
+                           execute as a single transaction (if non-interactive)
+  -?, --help[=options]     show this help, then exit
+      --help=commands      list backslash commands, then exit
+      --help=variables     list special variables, then exit
+
+Input and output options:
+  -a, --echo-all           echo all input from script
+  -b, --echo-errors        echo failed commands
+  -e, --echo-queries       echo commands sent to server
+  -E, --echo-hidden        display queries that internal commands generate
+  -L, --log-file=FILENAME  send session log to file
+  -n, --no-readline        disable enhanced command line editing (readline)
+  -o, --output=FILENAME    send query results to file (or |pipe)
+  -q, --quiet              run quietly (no messages, only query output)
+  -s, --single-step        single-step mode (confirm each query)
+  -S, --single-line        single-line mode (end of line terminates SQL command)
+
+Output format options:
+  -A, --no-align           unaligned table output mode
+  -F, --field-separator=STRING
+                           field separator for unaligned output (default: "|")
+  -H, --html               HTML table output mode
+  -P, --pset=VAR[=ARG]     set printing option VAR to ARG (see \pset command)
+  -R, --record-separator=STRING
+                           record separator for unaligned output (default: newline)
+  -t, --tuples-only        print rows only
+  -T, --table-attr=TEXT    set HTML table tag attributes (e.g., width, border)
+  -x, --expanded           turn on expanded table output
+  -z, --field-separator-zero
+                           set field separator for unaligned output to zero byte
+  -0, --record-separator-zero
+                           set record separator for unaligned output to zero byte
+
+Connection options:
+  -h, --host=HOSTNAME      database server host or socket directory (default: "local socket")
+  -p, --port=PORT          database server port (default: "5432")
+  -U, --username=USERNAME  database user name (default: "postgres")
+  -w, --no-password        never prompt for password
+  -W, --password           force password prompt (should happen automatically)
+
+
+for passwd checking
+===============
+
+select * from pg_shadow;
+
+alter user postgres with password 'postgres';
+
+
+
+
+

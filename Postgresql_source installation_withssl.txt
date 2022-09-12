@@ -1,0 +1,134 @@
+
+
+Postgresql installation source code 14 version
+================================================
+
+Please check the version and hardware from the server
+
+	[root@postgreshelp ~]# uname -a
+	Linux postgreshelp 2.6.39-400.17.1.el6uek.x86_64 #1 SMP Fri Feb 22 18:16:18 PST 2013 x86_64 x86_64 x86_64 GNU/Linux
+	[root@postgreshelp ~]#
+
+Pre-requisite check to install PostgreSQL
+
+1.Make sure the GNU make version 3.80.
+  RequiredGNU make version 3.80 or newer is required; other make programs or older GNU make versions will not work. 
+ (GNU make is sometimes installed under the name gmake.) To test for GNU make enter:
+
+Make coomand is used to build and maintain group ofprograms and files from the source code . IIn linux is used by developers. 
+It assists developers to install and compile ,au utilities from the terminal . The make motive is to determine a large program into parts and to check whether it needs to be recomplied or not 
+        
+            [root@postgreshelp ~]# make --version
+					GNU Make 3.81
+					Copyright (C) 2006  Free Software Foundation, Inc.
+					This is free software; see the source for copying conditions.
+					There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ 					This program built for x86_64-unknown-linux-gnu
+	    [root@postgreshelp ~]#
+
+
+
+1. First install required prerequisites such as gcc, readline-devel and zlib-devel using package manager as shown
+
+The GNU Readline library is used by default. It allows psql (the PostgreSQL command line SQL interpreter) to remember each command you type, and allows you to use arrow keys to recall and edit previous commands. This is very helpful and is strongly recommended. If you don't want to use it then you must specify the --without-readline option to configure. As an alternative, you can often use the BSD-licensed libedit library, originally developed on NetBSD. The libedit library is GNU Readline-compatible and is used if libreadline is not found, or if --with-libedit-preferred is used as an option to configure. If you are using a package-based Linux distribution, be aware that you need both the readline and readline-devel packages, 
+if those are separate in your distribution.
+
+
+
+		# yum install gcc zlib-devel readline-devel     [On RHEL/CentOS]
+		# apt install gcc zlib1g-dev libreadline6-dev   [On Debian/Ubuntu]
+
+
+If you need to get a GNU package, you can find it at your local GNU mirror site
+ (see https://www.gnu.org/prep/ftp for a list) or at ftp://ftp.gnu.org/gnu/.
+
+The zlib compression library is used by default. If you don't want to use it then you must specify the --without-zlib option to configure. 
+Using this option disables support for compressed archives in pg_dump and pg_restore.
+
+2. Download the source code tar file from the official postgres 
+website using the following wget command directly on system.
+
+	# wget https://ftp.postgresql.org/pub/source/v14.4/postgresql-14.4.tar.bz2
+
+ Next extract the tar file 
+
+        # tar -xvf postgresql-14.4.tar.bz2
+
+3 . Create the users and directory for bin (optional) and data directory
+        
+        # useradd -d /home/postgres/ postgres
+        
+      For customize bin directory 
+         
+        # mkdir -p /usr/pgsql-14/
+      
+      for data directory 
+         
+        # mkdir -p /u01/postgres/14/data
+
+
+4 configure the Postgresql 
+
+     # cd postgres14.4
+     #./configure  --prefix=/usr/pgsql-14/ --with-pgport=5433 --with-openssl
+
+By defualt zlib and readline is configure if prefer dont need then use  --without-readline --without-zlib 
+
+     Next run make and make install
+     
+     # make
+before running make install command check data directory in /u01/postgres/14/data zero files available after running make install command it will create files   
+     # make install
+
+        Note:-we want to install postgres binary on /Postgres/pg13 directory so we must include -prefix option in configure else postgres will install on 	defalt /usr/local/pgsql directory.more option -help
+	./configure -prefix=/Postgres/pg13= Prepare configuration of Postgres
+	make= It will create a directory and link so library it will take some to finish
+	make install =Installation of postgress binary
+
+
+
+For contrib modules 
+cd contrib/ =Change to contib directory to install additional utility in postgress/bin/ directory
+make= Prepar for additiona utility
+make install =Installation of additional utility
+-- 
+     #cd contrib
+     # make
+     # make install
+
+TO check succesfully install go to bin directory run pg_config
+
+    # cd /usr/pgsql-14/bin/pg_config
+
+
+5 Initialize the cluster 
+     # su - postgresql
+     # /usr/pgsql-14/bin/initdb -D /u01/postgres/14/data 
+    start the cluster
+
+     # /usr/pgsql-14/bin/pg_Ctl -D /u01/postgres/14/data start
+
+
+Short version of install commands
+
+./configure
+make
+su
+make install
+adduser postgres
+mkdir /usr/local/pgsql/data
+chown postgres /usr/local/pgsql/data
+su - postgres
+/usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
+/usr/local/pgsql/bin/pg_ctl -D /usr/local/pgsql/data -l logfile start
+/usr/local/pgsql/bin/createdb test
+/usr/local/pgsql/bin/psql test
+    
+COnnections with ssl
+==========
+postgres://psqladminun:{your_password}@psql-mbp-0000-dev2-weu-1.postgres.database.azure.com/postgres?sslmode=require
+psql "host=psql-mbp-0000-dev2-weu-1.postgres.database.azure.com port=5432 dbname={your_database} user=psqladminun password={your_password} sslmode=require"
+jdbc:postgresql://psql-mbp-0000-dev2-weu-1.postgres.database.azure.com:5432/{your_database}?user=psqladminun&password={your_password}&sslmode=require
+
+Node.js, Python, Ruby, PHP, C++ (libpq)
+host=psql-mbp-0000-dev2-weu-1.postgres.database.azure.com port=5432 dbname={your_database} user=psqladminun password={your_password} sslmode=require
